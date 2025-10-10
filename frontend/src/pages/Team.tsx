@@ -8,7 +8,7 @@ export default function Team() {
         A grid of 10 specialists derived from your profile (Economist, Engineer, etc.).
       </p>
       <div style={{ marginTop: 24 }}>
-        <Link to="/result">Next →</Link>
+        <Link to="/result">Next -></Link>
       </div>
     </main>
   );

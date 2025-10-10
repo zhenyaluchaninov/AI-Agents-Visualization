@@ -6,7 +6,7 @@ export default function Profile() {
       <h1 style={{ marginBottom: 16 }}>Enter your name</h1>
       <input placeholder="enter your name" style={{ padding: 8, fontSize: 16 }} />
       <div style={{ marginTop: 24 }}>
-        <Link to="/problem">Next →</Link>
+        <Link to="/problem">Next -></Link>
       </div>
     </main>
   );
