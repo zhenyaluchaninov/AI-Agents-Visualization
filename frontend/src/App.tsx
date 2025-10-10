@@ -1,4 +1,3 @@
-import React from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import Profile from './pages/Profile';
 import Problem from './pages/Problem';
