@@ -1,30 +1,19 @@
-import { Routes, Route, NavLink } from 'react-router-dom';
-import Profile from './pages/Profile';
-import Problem from './pages/Problem';
-import Loading from './pages/Loading';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Intro from './pages/Intro';
 import Team from './pages/Team';
-import Result from './pages/Result';
+import Discussion from './pages/Discussion';
+import Insights from './pages/Insights';
+import Scenarios from './pages/Scenarios';
 
 export default function App() {
-  const linkStyle: React.CSSProperties = { marginRight: 12, textDecoration: 'none' };
-
   return (
-    <div>
-      <nav style={{ padding: 16 }}>
-        <NavLink to="/" style={linkStyle}>Profile</NavLink>
-        <NavLink to="/problem" style={linkStyle}>Problem</NavLink>
-        <NavLink to="/loading" style={linkStyle}>Loading</NavLink>
-        <NavLink to="/team" style={linkStyle}>Team</NavLink>
-        <NavLink to="/result" style={linkStyle}>Result</NavLink>
-      </nav>
-
-      <Routes>
-        <Route path="/" element={<Profile />} />
-        <Route path="/problem" element={<Problem />} />
-        <Route path="/loading" element={<Loading />} />
-        <Route path="/team" element={<Team />} />
-        <Route path="/result" element={<Result />} />
-      </Routes>
-    </div>
+    <Routes>
+      <Route path="/" element={<Intro />} />
+      <Route path="/team" element={<Team />} />
+      <Route path="/discussion" element={<Discussion />} />
+      <Route path="/insights" element={<Insights />} />
+      <Route path="/scenarios" element={<Scenarios />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
