@@ -1,0 +1,232 @@
+/* Root scope with design tokens matching prototype */
+.root {
+  /* Timings & easing */
+  --type-speed: 50ms;
+  --fade: .65s;
+  --line: 1.2s;
+  --panel-in: .9s;
+  --avatar-in: .7s;
+  --btn-in: .8s;
+  --phase-fade: .6s;
+  --stagger: .5s;
+  --ease: cubic-bezier(.25,.1,.25,1);
+  --ease-phase: cubic-bezier(.42, 0, .58, 1);
+  --ease-overshoot: cubic-bezier(.34, 1.56, .64, 1);
+
+  /* Colors */
+  --lead:#d5d7df;
+  --lead-strong:#bcc0cb;
+  --text:#2d2d3a; 
+  --text-2:#6b6b7d;
+  --text-muted:#9393a4;
+  --card:#ffffff;
+  --primary:#8b7df0; 
+  --primary-light:#a298f2; 
+  --primary-dark:#7165d8;
+
+  /* Agent personality colors */
+  --color-innovator:#ff9d5c;
+  --color-critic:#ff6b6b;
+  --color-cautious:#6ba3d4;
+  --color-visionary:#9d8ed4;
+  --color-pragmatist:#6ab59d;
+  --color-mediator:#7dd3c0;
+
+  /* Shadows */
+  --shadow-sm:0 2px 8px rgba(0,0,0,.04);
+  --shadow-md:0 8px 24px rgba(0,0,0,.06);
+  --shadow-lg:0 16px 48px rgba(0,0,0,.08);
+  --shadow-xl:0 24px 64px rgba(0,0,0,.1);
+  --shadow-glow:0 0 80px rgba(139,125,240,.15);
+
+  position: relative;
+  min-height: 100vh;
+  font-family:"Inter","Segoe UI Variable","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  color:var(--text);
+  background:radial-gradient(1000px 600px at 60% 20%, #e9e6ff 0%, #f7f6fb 40%, #faf9fc 70%);
+  overflow-x:hidden;
+}
+
+/* Local reset to match prototype and stabilize smooth height math */
+.root, .root * { box-sizing: border-box; }
+.root * { margin: 0; padding: 0; }
+
+/* Phase crossfade */
+.phase{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  padding:48px 16px;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity var(--phase-fade) var(--ease-phase);
+  min-height:100vh;
+}
+.active{opacity:1; pointer-events:auto}
+
+/* === PHASE A: Agent Creation === */
+.wrap{position:relative; width:min(620px,92vw)}
+
+.card{
+  position:relative; background:var(--card); border-radius:24px; border:1px solid #fff;
+  padding:56px 56px 76px; text-align:center; box-shadow:0 16px 48px rgba(0,0,0,.08);
+  opacity:0; transform:translateY(28px) scale(.94);
+  transition:
+    transform var(--panel-in) var(--ease),
+    opacity   var(--panel-in) var(--ease);
+  will-change: height;
+}
+.show.card{opacity:1; transform:translateY(0) scale(1)}
+
+.avatar{
+  width:80px;height:80px;border-radius:50%;margin:0 auto 22px;display:grid;place-items:center;
+  background:linear-gradient(135deg,#ff6b6b,#ff8f8f); box-shadow:0 10px 24px rgba(255,127,127,.35);
+  opacity:0; transform:translateY(12px) scale(.92);
+  transition:
+    transform var(--avatar-in) var(--ease),
+    opacity   var(--avatar-in) var(--ease);
+}
+.show.avatar{opacity:1; transform:translateY(0) scale(1)}
+.avatarSvg{width:40px;height:40px}
+
+.titleWrap{ position:relative; display:block; width:fit-content; margin:0 auto; }
+.role{ font-size:28px; font-weight:800; letter-spacing:.2px; display:inline-block; }
+.personality{ margin-top:8px; font-size:18px; color:var(--text-2); display:inline-block; }
+
+.anchorPin{ position:absolute; width:0; height:0; pointer-events:none; }
+.pinRole{ left:-10%; bottom:20px; }
+.pinCritic{ left:120%; top:calc(100% - 10px); }
+
+.callout{
+  position:absolute; max-width:260px; opacity:0; transition:opacity var(--fade) var(--ease);
+}
+.show.callout{opacity:1}
+.left{left:-160px; top:70px}
+.right{right:-160px; top:70px}
+.calloutBox{
+  background:#fff; border:1px dashed var(--lead-strong); border-radius:12px;
+  padding:14px 16px; color:var(--text-2); font-size:16px; line-height:1.5;
+  box-shadow:0 6px 18px rgba(0,0,0,.06);
+  will-change: height;
+}
+
+.overlay{ position:fixed; left:0; top:0; width:100vw; height:100vh; pointer-events:none; z-index:1000; display:block; }
+.overlayPath{
+  fill:none; stroke:var(--lead); stroke-width:2; stroke-linecap:round;
+  opacity:0;
+  transition:
+    opacity var(--fade) var(--ease),
+    stroke-dashoffset var(--line) var(--ease);
+}
+
+.dot{
+  position:fixed; width:8px; height:8px; border-radius:50%; background:var(--lead);
+  box-shadow:0 0 0 2px rgba(255,255,255,.95);
+  transform:translate(-50%,-50%); z-index:1001; opacity:0; transition:opacity var(--fade) var(--ease);
+}
+.show.dot{opacity:1}
+
+.cta{margin-top:36px; text-align:center}
+.btn{
+  padding:16px 40px;border:none;border-radius:999px;color:#fff;cursor:pointer;
+  background:linear-gradient(135deg,#8b7df0,#a298f2); box-shadow:0 14px 32px rgba(139,125,240,.35);
+  font-size:18px; font-weight:600; letter-spacing:.2px;
+  opacity:0; transform:translateY(16px) scale(.98);
+  transition:
+    transform var(--btn-in) var(--ease),
+    opacity   var(--btn-in) var(--ease);
+}
+.show.btn{opacity:1; transform:translateY(0) scale(1)}
+
+/* === PHASE B: Team Reveal === */
+.teamContainer{
+  text-align:center;
+  max-width:900px;
+  width:100%;
+}
+
+.teamTitle{
+  font-size:clamp(28px,4.5vw,42px);
+  font-weight:800;
+  line-height:1.1;
+  background:linear-gradient(135deg,var(--primary-dark),var(--primary-light));
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+  margin-bottom:48px;
+  opacity:0;
+  transform:translateY(20px);
+}
+.show.teamTitle{
+  animation:fadeUp .6s var(--ease) both;
+}
+@keyframes fadeUp{to{opacity:1; transform:translateY(0)}}
+
+.teamGrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:24px;
+  margin-bottom:48px;
+}
+
+.agentCard{
+  background:#fff;
+  border:1px solid #f0f0f4;
+  border-radius:20px;
+  padding:24px;
+  text-align:center;
+  transition: all .4s var(--ease);
+  box-shadow:var(--shadow-sm);
+  opacity:0;
+  transform:translateY(20px) scale(0.95);
+}
+.show.agentCard{
+  animation:cardReveal .5s var(--ease-overshoot) both;
+}
+@keyframes cardReveal{
+  to{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
+}
+.agentCard:hover{
+  transform:translateY(-4px);
+  box-shadow:var(--shadow-lg);
+}
+
+.agentIcon{
+  width:56px;
+  height:56px;
+  border-radius:50%;
+  margin:0 auto 16px;
+  display:grid;
+  place-items:center;
+  box-shadow:var(--shadow-sm);
+}
+.agentIconSvg{ width:28px; height:28px; }
+
+.agentName{
+  font-size:16px;
+  font-weight:600;
+  color:var(--text);
+  margin-bottom:4px;
+}
+.agentStyle{
+  font-size:14px;
+  color:var(--text-muted);
+}
+
+/* Agent personality backgrounds */
+.personality-innovator{background:linear-gradient(135deg,var(--color-innovator),#ffb380); box-shadow: var(--shadow-sm), 0 10px 24px rgba(255,157,92,.35);}
+.personality-critic{background:linear-gradient(135deg,var(--color-critic),#ff8888); box-shadow: var(--shadow-sm), 0 10px 24px rgba(255,107,107,.35);}
+.personality-cautious{background:linear-gradient(135deg,var(--color-cautious),#8bb8e0); box-shadow: var(--shadow-sm), 0 10px 24px rgba(107,163,212,.32);}
+.personality-visionary{background:linear-gradient(135deg,var(--color-visionary),#b3a6e0); box-shadow: var(--shadow-sm), 0 10px 24px rgba(157,142,212,.32);}
+.personality-pragmatist{background:linear-gradient(135deg,var(--color-pragmatist),#88c4b0); box-shadow: var(--shadow-sm), 0 10px 24px rgba(106,181,157,.32);}
+.personality-mediator{background:linear-gradient(135deg,var(--color-mediator),#9de0d5); box-shadow: var(--shadow-sm), 0 10px 24px rgba(125,211,192,.32);}
+
+@media (max-width:768px){
+  .card{padding:32px}
+  .teamGrid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px}
+  .btn{padding:16px 36px; font-size:15px}
+}
