@@ -198,6 +198,13 @@
 }
 .problemIcon { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 16px; box-shadow: var(--shadow-md); }
 .agentSvg { width: 28px; height: 28px; }
+
+/* Icon glow helpers (match Screen 2 avatar-like glow) */
+.glowGold   { box-shadow: var(--shadow-sm), 0 10px 24px rgba(212,168,83,.35); }
+.glowPink   { box-shadow: var(--shadow-sm), 0 10px 24px rgba(212,122,151,.35); }
+.glowGreen  { box-shadow: var(--shadow-sm), 0 10px 24px rgba(106,181,157,.32); }
+.glowPurple { box-shadow: var(--shadow-sm), 0 10px 24px rgba(157,142,212,.32); }
+.glowBlue   { box-shadow: var(--shadow-sm), 0 10px 24px rgba(106,157,212,.32); }
 .problemTitle { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 10px; letter-spacing: -.5px; }
 .problemDesc { font-size: 13px; color: var(--text-secondary); line-height: 1.55; }
 
@@ -237,6 +244,12 @@
   background: linear-gradient(135deg, rgba(139,125,240,.04), rgba(162,152,242,.06));
 }
 .insightIcon { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+/* Ensure glow overrides default box-shadow for insight icons */
+.insightIcon.glowGold   { box-shadow: var(--shadow-sm), 0 10px 24px rgba(212,168,83,.35); }
+.insightIcon.glowPink   { box-shadow: var(--shadow-sm), 0 10px 24px rgba(212,122,151,.35); }
+.insightIcon.glowGreen  { box-shadow: var(--shadow-sm), 0 10px 24px rgba(106,181,157,.32); }
+.insightIcon.glowPurple { box-shadow: var(--shadow-sm), 0 10px 24px rgba(157,142,212,.32); }
+.insightIcon.glowBlue   { box-shadow: var(--shadow-sm), 0 10px 24px rgba(106,157,212,.32); }
 .insightTitle { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
 .insightDesc { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; margin-top: -2px; }
 
@@ -265,6 +278,10 @@
 .agentCircle { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; box-shadow: var(--shadow-sm); transition: all .3s var(--ease-hover); cursor: pointer; }
 .agentCircle:hover { transform: translateY(-4px) scale(1.08); box-shadow: var(--shadow-md); }
 .agentSvg { width: 28px; height: 28px; }
+
+/* Assemble button reveal (should appear last) */
+.assembleBtn { opacity: 0; transform: translateY(16px); }
+.show.assembleBtn { animation: btnUp var(--btn-duration) var(--ease-btn) both; }
 
 /* === Responsive === */
 @media (max-width: 768px) {

@@ -27,6 +27,7 @@ export default function Screen1() {
   const [finalLine2Visible, setFinalLine2Visible] = useState(false);
   const [iconsVisibleCount, setIconsVisibleCount] = useState(0);
   const [finalBtnVisible, setFinalBtnVisible] = useState(false);
+  const teamSeqLockRef = useRef(false);
 
   // Helpers to read CSS vars (scoped to container)
   const css = () => getComputedStyle(containerRef.current || document.documentElement);
@@ -133,33 +134,73 @@ export default function Screen1() {
     if (introRef.current) introRef.current.style.display = 'none';
   };
 
-  // Team Assembly sequence
-  const startTeamAssemblySequence = async () => {
-    setFinalLine1Visible(false);
-    setFinalLine2Visible(false);
-    setIconsVisibleCount(0);
-    setFinalBtnVisible(false);
+  // Reveal sequence for Team phase: title → subtitle → icons (staggered) → button
+  useEffect(() => {
+    const el = teamRef.current;
+    if (!el) return;
 
-    // Heading 1
-    setFinalLine1Visible(true);
-    await wait(FADE_DURATION());
-    await wait(READ_DELAY());
+    const runIdRef = { current: 0 } as { current: number };
+    const nextRunId = () => (++runIdRef.current);
 
-    // Heading 2
-    setFinalLine2Visible(true);
-    await wait(FADE_DURATION());
-    await wait(ICONS_AFTER_TEXT());
+    const run = async () => {
+      const RUN = nextRunId();
+      if (teamSeqLockRef.current) return;
+      teamSeqLockRef.current = true;
+      // Reset
+      setFinalBtnVisible(false);
+      setIconsVisibleCount(0);
+      setFinalLine1Visible(false);
+      setFinalLine2Visible(false);
 
-    // Icons stagger
-    const stagger = ICON_STAGGER();
-    const iconsTotal = 5;
-    for (let i = 0; i < iconsTotal; i++) {
-      setTimeout(() => setIconsVisibleCount((c) => Math.max(c, i + 1)), i * stagger);
-    }
-    const lastStart = (iconsTotal - 1) * stagger;
-    await wait(lastStart + ICON_DURATION() + 500);
-    setFinalBtnVisible(true);
-  };
+      // 1) Title
+      setFinalLine1Visible(true);
+      await wait(FADE_DURATION());
+      if (RUN !== runIdRef.current) return;
+      await wait(READ_DELAY());
+      if (RUN !== runIdRef.current) return;
+
+      // 2) Subtitle
+      setFinalLine2Visible(true);
+      await wait(FADE_DURATION());
+      if (RUN !== runIdRef.current) return;
+      await wait(READ_DELAY());
+      if (RUN !== runIdRef.current) return;
+
+      // 3) Icons stagger
+      await wait(ICONS_AFTER_TEXT());
+      if (RUN !== runIdRef.current) return;
+      for (let i = 1; i <= 5; i++) {
+        setIconsVisibleCount(i);
+        await wait(ICON_STAGGER() + 80);
+        if (RUN !== runIdRef.current) return;
+      }
+
+      // 4) After last icon pops, reveal the button
+      await wait(ICON_DURATION());
+      if (RUN !== runIdRef.current) return;
+      setFinalBtnVisible(true);
+      teamSeqLockRef.current = false;
+    };
+
+    // Start if already active on mount
+    if (el.classList.contains(styles.active)) run();
+
+    // Observe class changes to trigger when team phase activates
+    const mo = new MutationObserver(() => {
+      if (el.classList.contains(styles.active)) run();
+      else { nextRunId(); teamSeqLockRef.current = false; } // invalidate and unlock when deactivating
+    });
+    mo.observe(el, { attributes: true, attributeFilter: ['class'] });
+
+    return () => {
+      mo.disconnect();
+      nextRunId(); // invalidate on cleanup to stop any in-flight sequence (StrictMode-safe)
+      teamSeqLockRef.current = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Removed legacy manual team sequence; handled by StrictMode-safe effect above
 
   // Initial active phase class for Gate
   useEffect(() => {
@@ -178,7 +219,7 @@ export default function Screen1() {
   };
 
   const onContinue = async () => {
-    await switchPhase('team', startTeamAssemblySequence);
+    await switchPhase('team');
   };
 
   const toggleInsight = (key: string) => {
@@ -227,7 +268,7 @@ export default function Screen1() {
                 className={`${styles.problemCard} ${selectedProblem === 'ER' ? styles.problemCardSelected : ''}`}
                 onClick={() => setSelectedProblem('ER')}
               >
-                <div className={styles.problemIcon} style={{ background: 'linear-gradient(135deg,#d8c9ff,#e8deff)' }}>
+                <div className={`${styles.problemIcon} ${styles.glowPurple}`} style={{ background: 'linear-gradient(135deg,#d8c9ff,#e8deff)' }}>
                   <svg viewBox="0 0 24 24" fill="none" className={styles.agentSvg}>
                     <rect x="3" y="7" width="18" height="12" rx="4" fill="#ffffff"/>
                     <path d="M12 10v6M9 13h6" stroke="#7165d8" strokeWidth="2.5" strokeLinecap="round"/>
@@ -242,7 +283,7 @@ export default function Screen1() {
                 className={`${styles.problemCard} ${selectedProblem === 'Bus' ? styles.problemCardSelected : ''}`}
                 onClick={() => setSelectedProblem('Bus')}
               >
-                <div className={styles.problemIcon} style={{ background: 'linear-gradient(135deg,#b3d9ff,#c8e5ff)' }}>
+                <div className={`${styles.problemIcon} ${styles.glowBlue}`} style={{ background: 'linear-gradient(135deg,#b3d9ff,#c8e5ff)' }}>
                   <svg viewBox="0 0 24 24" fill="none" className={styles.agentSvg}>
                     <rect x="3" y="6" width="18" height="10" rx="2" fill="#ffffff"/>
                     <circle cx="8" cy="18" r="2" fill="#5a87c6"/>
@@ -268,7 +309,7 @@ export default function Screen1() {
                   className={`${styles.insightCard} ${selectedInsights.has('perspectives') ? styles.insightCardSelected : ''}`}
                   onClick={() => toggleInsight('perspectives')}
                 >
-                  <div className={styles.insightIcon} style={{ background: 'linear-gradient(135deg,#ffe4a3,#ffecb8)' }}>
+                  <div className={`${styles.insightIcon} ${styles.glowGold}`} style={{ background: 'linear-gradient(135deg,#ffe4a3,#ffecb8)' }}>
                     <svg viewBox="0 0 24 24" fill="none" className={styles.agentSvg}>
                       <circle cx="12" cy="12" r="3" fill="#d4a853"/>
                       <path d="M12 5v2M12 17v2M5 12h2M17 12h2" stroke="#d4a853" strokeWidth="2" strokeLinecap="round"/>
@@ -283,7 +324,7 @@ export default function Screen1() {
                   className={`${styles.insightCard} ${selectedInsights.has('tensions') ? styles.insightCardSelected : ''}`}
                   onClick={() => toggleInsight('tensions')}
                 >
-                  <div className={styles.insightIcon} style={{ background: 'linear-gradient(135deg,#ffb5cc,#ffc8db)' }}>
+                  <div className={`${styles.insightIcon} ${styles.glowPink}`} style={{ background: 'linear-gradient(135deg,#ffb5cc,#ffc8db)' }}>
                     <svg viewBox="0 0 24 24" fill="none" className={styles.agentSvg}>
                       <path d="M12 3v18" stroke="#d47a97" strokeWidth="2" strokeLinecap="round"/>
                       <path d="M5 12h14" stroke="#d47a97" strokeWidth="2" strokeLinecap="round"/>
@@ -299,7 +340,7 @@ export default function Screen1() {
                   className={`${styles.insightCard} ${selectedInsights.has('opportunities') ? styles.insightCardSelected : ''}`}
                   onClick={() => toggleInsight('opportunities')}
                 >
-                  <div className={styles.insightIcon} style={{ background: 'linear-gradient(135deg,#b5e4d3,#c8f0e3)' }}>
+                  <div className={`${styles.insightIcon} ${styles.glowGreen}`} style={{ background: 'linear-gradient(135deg,#b5e4d3,#c8f0e3)' }}>
                     <svg viewBox="0 0 24 24" fill="none" className={styles.agentSvg}>
                       <path d="M12 2l3 7h7l-5.5 4 2 7-6.5-4.5L5.5 20l2-7L2 9h7z" fill="#6ab59d" opacity=".3"/>
                       <circle cx="12" cy="12" r="3" fill="#6ab59d"/>
@@ -313,7 +354,7 @@ export default function Screen1() {
                   className={`${styles.insightCard} ${selectedInsights.has('blindspots') ? styles.insightCardSelected : ''}`}
                   onClick={() => toggleInsight('blindspots')}
                 >
-                  <div className={styles.insightIcon} style={{ background: 'linear-gradient(135deg,#d8c9ff,#e8deff)' }}>
+                  <div className={`${styles.insightIcon} ${styles.glowPurple}`} style={{ background: 'linear-gradient(135deg,#d8c9ff,#e8deff)' }}>
                     <svg viewBox="0 0 24 24" fill="none" className={styles.agentSvg}>
                       <circle cx="12" cy="12" r="9" stroke="#9d8ed4" strokeWidth="2" fill="none"/>
                       <path d="M12 16v-4" stroke="#9d8ed4" strokeWidth="2" strokeLinecap="round"/>
@@ -354,7 +395,7 @@ export default function Screen1() {
             {[0,1,2,3,4].map((i) => (
               <div key={i} className={`${styles.iconBounce} ${i < iconsVisibleCount ? styles.reveal : ''}`}>
                 <div
-                  className={styles.agentCircle}
+                  className={`${styles.agentCircle} ${i === 0 ? styles.glowGold : i === 1 ? styles.glowPink : i === 2 ? styles.glowGreen : i === 3 ? styles.glowPurple : styles.glowBlue}`}
                   style={{
                     background:
                       i === 0 ? 'linear-gradient(135deg,#ffe4a3,#ffecb8)'
