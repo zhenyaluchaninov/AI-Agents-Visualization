@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AI Agents - Team Assembly</title>
+
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    /* Timings & easing */
+    --type-speed: 50ms;
+    --fade: .65s;
+    --line: 1.2s;
+    --panel-in: .9s;
+    --avatar-in: .7s;
+    --btn-in: .8s;
+    --phase-fade: .6s;
+    --stagger: .5s;
+    --ease: cubic-bezier(.25,.1,.25,1);
+    --ease-phase: cubic-bezier(.42, 0, .58, 1);
+    --ease-overshoot: cubic-bezier(.34, 1.56, .64, 1);
+
+    /* Colors */
+    --lead:#d5d7df;
+    --lead-strong:#bcc0cb;
+    --text:#2d2d3a; 
+    --text-2:#6b6b7d;
+    --text-muted:#9393a4;
+    --card:#ffffff;
+    --primary:#8b7df0; 
+    --primary-light:#a298f2; 
+    --primary-dark:#7165d8;
+    
+    /* Agent personality colors */
+    --color-innovator:#ff9d5c;
+    --color-critic:#ff6b6b;
+    --color-cautious:#6ba3d4;
+    --color-visionary:#9d8ed4;
+    --color-pragmatist:#6ab59d;
+    --color-mediator:#7dd3c0;
+    
+    /* Shadows */
+    --shadow-sm:0 2px 8px rgba(0,0,0,.04);
+    --shadow-md:0 8px 24px rgba(0,0,0,.06);
+    --shadow-lg:0 16px 48px rgba(0,0,0,.08);
+    --shadow-xl:0 24px 64px rgba(0,0,0,.1);
+    --shadow-glow:0 0 80px rgba(139,125,240,.15);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  
+  body{
+    font-family:"Inter","Segoe UI Variable","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    color:var(--text);
+    background:radial-gradient(1000px 600px at 60% 20%, #e9e6ff 0%, #f7f6fb 40%, #faf9fc 70%);
+    min-height:100vh;
+    overflow-x:hidden;
+    position:relative;
+  }
+
+  /* Phase system */
+  .phase{
+    position:absolute;
+    inset:0;
+    display:grid;
+    place-items:center;
+    padding:48px 16px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity var(--phase-fade) var(--ease-phase);
+    min-height:100vh;
+  }
+  .phase.active{opacity:1; pointer-events:auto}
+
+  /* === PHASE A: Agent Creation (from your HTML) === */
+  .wrap{position:relative; width:min(620px,92vw)}
+
+  .card{
+    position:relative; background:var(--card); border-radius:24px; border:1px solid #fff;
+    padding:56px 56px 76px; text-align:center; box-shadow:0 16px 48px rgba(0,0,0,.08);
+    opacity:0; transform:translateY(28px) scale(.94);
+    transition:
+      transform var(--panel-in) var(--ease),
+      opacity   var(--panel-in) var(--ease);
+    will-change: height;
+  }
+  .card.show{opacity:1; transform:translateY(0) scale(1)}
+
+  .avatar{
+    width:80px;height:80px;border-radius:50%;margin:0 auto 22px;display:grid;place-items:center;
+    background:linear-gradient(135deg,#ff6b6b,#ff8f8f); box-shadow:0 10px 24px rgba(255,127,127,.35);
+    opacity:0; transform:translateY(12px) scale(.92);
+    transition:
+      transform var(--avatar-in) var(--ease),
+      opacity   var(--avatar-in) var(--ease);
+  }
+  .avatar.show{opacity:1; transform:translateY(0) scale(1)}
+  .avatar svg{width:40px;height:40px}
+
+  .title-wrap{ position:relative; display:block; width:fit-content; margin:0 auto; }
+  .role{ font-size:28px; font-weight:800; letter-spacing:.2px; display:inline-block; }
+  .personality{ margin-top:8px; font-size:18px; color:var(--text-2); display:inline-block; }
+
+  .anchor-pin{ position:absolute; width:0; height:0; pointer-events:none; }
+  #pinRole{ left:-10%; bottom:20px; }
+  #pinCritic{ left:120%; top:calc(100% - 10px); }
+
+  .callout{
+    position:absolute; max-width:260px; opacity:0; transition:opacity var(--fade) var(--ease);
+  }
+  .callout.show{opacity:1}
+  .callout.left{left:-160px; top:70px}
+  .callout.right{right:-160px; top:70px}
+  .callout-box{
+    background:#fff; border:1px dashed var(--lead-strong); border-radius:12px;
+    padding:14px 16px; color:var(--text-2); font-size:16px; line-height:1.5;
+    box-shadow:0 6px 18px rgba(0,0,0,.06);
+    will-change: height;
+  }
+
+  .overlay{ position:fixed; left:0; top:0; width:100vw; height:100vh; pointer-events:none; z-index:1000; display:block; }
+  .overlay path{
+    fill:none; stroke:var(--lead); stroke-width:2; stroke-linecap:round;
+    opacity:0;
+    transition:
+      opacity var(--fade) var(--ease),
+      stroke-dashoffset var(--line) var(--ease);
+  }
+
+  .dot{
+    position:fixed; width:8px; height:8px; border-radius:50%; background:var(--lead);
+    box-shadow:0 0 0 2px rgba(255,255,255,.95);
+    transform:translate(-50%,-50%); z-index:1001; opacity:0; transition:opacity var(--fade) var(--ease);
+  }
+  .dot.show{opacity:1}
+
+  .cta{margin-top:36px; text-align:center}
+  .btn{
+    padding:16px 40px;border:none;border-radius:999px;color:#fff;cursor:pointer;
+    background:linear-gradient(135deg,#8b7df0,#a298f2); box-shadow:0 14px 32px rgba(139,125,240,.35);
+    font-size:18px; font-weight:600; letter-spacing:.2px;
+    opacity:0; transform:translateY(16px) scale(.98);
+    transition:
+      transform var(--btn-in) var(--ease),
+      opacity   var(--btn-in) var(--ease);
+  }
+  .btn.show{opacity:1; transform:translateY(0) scale(1)}
+
+  /* === PHASE B: Team Reveal === */
+  .team-container{
+    text-align:center;
+    max-width:900px;
+    width:100%;
+  }
+
+  .team-title{
+    font-size:clamp(28px,4.5vw,42px);
+    font-weight:800;
+    line-height:1.1;
+    background:linear-gradient(135deg,var(--primary-dark),var(--primary-light));
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+    margin-bottom:48px;
+    opacity:0;
+    transform:translateY(20px);
+  }
+  .team-title.show{
+    animation:fadeUp .6s var(--ease) both;
+  }
+  @keyframes fadeUp{to{opacity:1; transform:translateY(0)}}
+
+  .team-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:24px;
+    margin-bottom:48px;
+  }
+
+  .agent-card{
+    background:#fff;
+    border:1px solid #f0f0f4;
+    border-radius:20px;
+    padding:24px;
+    text-align:center;
+    transition: all .4s var(--ease);
+    box-shadow:var(--shadow-sm);
+    opacity:0;
+    transform:translateY(20px) scale(0.95);
+  }
+  .agent-card.show{
+    animation:cardReveal .5s var(--ease-overshoot) both;
+  }
+  @keyframes cardReveal{
+    to{
+      opacity:1;
+      transform:translateY(0) scale(1);
+    }
+  }
+  .agent-card:hover{
+    transform:translateY(-4px);
+    box-shadow:var(--shadow-lg);
+  }
+
+  .agent-icon{
+    width:56px;
+    height:56px;
+    border-radius:50%;
+    margin:0 auto 16px;
+    display:grid;
+    place-items:center;
+    box-shadow:var(--shadow-sm);
+  }
+  .agent-icon svg{
+    width:28px;
+    height:28px;
+  }
+
+  .agent-name{
+    font-size:16px;
+    font-weight:600;
+    color:var(--text);
+    margin-bottom:4px;
+  }
+  .agent-style{
+    font-size:14px;
+    color:var(--text-muted);
+  }
+
+  /* Agent personality backgrounds */
+  .personality-innovator{background:linear-gradient(135deg,var(--color-innovator),#ffb380)}
+  .personality-critic{background:linear-gradient(135deg,var(--color-critic),#ff8888)}
+  .personality-cautious{background:linear-gradient(135deg,var(--color-cautious),#8bb8e0)}
+  .personality-visionary{background:linear-gradient(135deg,var(--color-visionary),#b3a6e0)}
+  .personality-pragmatist{background:linear-gradient(135deg,var(--color-pragmatist),#88c4b0)}
+  .personality-mediator{background:linear-gradient(135deg,var(--color-mediator),#9de0d5)}
+
+  @media (max-width:768px){
+    .card{padding:32px}
+    .team-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px}
+    .btn{padding:16px 36px; font-size:15px}
+  }
+</style>
+</head>
+<body>
+  <!-- PHASE A: Agent Creation (from your HTML) -->
+  <div class="phase active" id="phase-creation">
+    <svg class="overlay" id="overlay" width="100%" height="100%"></svg>
+
+    <div id="dot-l-from" class="dot"></div>
+    <div id="dot-l-to"   class="dot"></div>
+    <div id="dot-r-from" class="dot"></div>
+    <div id="dot-r-to"   class="dot"></div>
+
+    <div class="wrap">
+      <div class="card" id="card">
+        <div class="avatar" id="avatar">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="10" r="3" fill="#fff"/>
+            <path d="M6 20c0-4 2.5-6 6-6s6 2 6 6" fill="#fff" opacity=".85"/>
+          </svg>
+        </div>
+
+        <div class="title-wrap" id="roleWrap">
+          <span id="role" class="role"></span>
+          <span id="pinRole" class="anchor-pin" aria-hidden="true"></span>
+        </div>
+        <div class="title-wrap" id="personalityWrap" style="margin-top:8px">
+          <span id="personality" class="personality"></span>
+          <span id="pinCritic" class="anchor-pin" aria-hidden="true"></span>
+        </div>
+
+        <div class="callout left"  id="co1"><div class="callout-box"><span id="co1t"></span></div></div>
+        <div class="callout right" id="co2"><div class="callout-box"><span id="co2t"></span></div></div>
+      </div>
+
+      <div class="cta"><button class="btn" id="next">Continue</button></div>
+    </div>
+  </div>
+
+  <!-- PHASE B: Team Reveal -->
+  <div class="phase" id="phase-team">
+    <div class="team-container">
+      <h2 class="team-title" id="teamTitle">Your specialist team is ready</h2>
+      
+      <div class="team-grid" id="teamGrid">
+        <!-- Team cards will be generated here -->
+      </div>
+
+      <button class="btn" id="continueToDiscussion">Start Discussion</button>
+    </div>
+  </div>
+
+<script>
+  // === Utilities ===
+  const $ = s => document.querySelector(s);
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  async function typeText(el, text, spd){
+    const v = (spd ?? parseInt(getComputedStyle(document.documentElement).getPropertyValue('--type-speed'))) || 50;
+    el.textContent=''; 
+    for(let i=0;i<text.length;i++){ 
+      el.textContent+=text[i]; 
+      await wait(v); 
+    }
+  }
+
+  /* Smooth height resize for panels */
+  const __smoothItems = [];
+  function setupSmoothResize(target, k=0.18, overflowHidden=true, allowShrink=true){
+    const el = typeof target === 'string' ? $(target) : target;
+    if(!el) return;
+    const measured = el.scrollHeight || el.getBoundingClientRect().height;
+    el.style.height = `${Math.max(0,measured)}px`;
+    if (overflowHidden) el.style.overflow = 'hidden';
+    el.__smooth = { h: measured, k, min: allowShrink ? 0 : measured };
+    __smoothItems.push(el);
+  }
+  
+  function updateSmoothSizes(){
+    for(const el of __smoothItems){
+      const s = el.__smooth;
+      const target = Math.max(el.scrollHeight, s.min || 0);
+      s.h += (target - s.h) * s.k;
+      if (Math.abs(target - s.h) < 0.5) s.h = target;
+      el.style.height = `${s.h}px`;
+    }
+  }
+  
+  function releaseSmoothResize(keepSelector=null){
+    const kept=[];
+    for(const el of __smoothItems){
+      if (keepSelector && el.matches && el.matches(keepSelector)) { kept.push(el); continue; }
+      el.style.height = '';
+      el.style.overflow = '';
+      delete el.__smooth;
+    }
+    __smoothItems.length = 0;
+    kept.forEach(el=>__smoothItems.push(el));
+  }
+
+  function sizeOverlay(){
+    const svg=$('#overlay');
+    svg.setAttribute('width', window.innerWidth);
+    svg.setAttribute('height', window.innerHeight);
+    svg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
+  }
+  
+  function rectCenter(r){ return { x: r.left + r.width/2, y: r.top + r.height/2 }; }
+  
+  function sPath(p0,p1){
+    const dx=p1.x-p0.x, dy=p1.y-p0.y;
+    const c1={x:p0.x+dx*0.35, y:p0.y+dy*0.10};
+    const c2={x:p1.x-dx*0.35, y:p1.y-dy*0.10};
+    return `M ${p0.x},${p0.y} C ${c1.x},${c1.y} ${c2.x},${c2.y} ${p1.x},${p1.y}`;
+  }
+
+  function ensurePaths(){
+    const svg=$('#overlay');
+    if(!svg._built){
+      svg.innerHTML='<path id="pl"/><path id="pr"/>';
+      const pl = $('#pl'), pr = $('#pr');
+      [pl, pr].forEach(p => {
+        p.style.opacity = '0';
+        p.style.strokeDasharray = '1';
+        p.style.strokeDashoffset = '1';
+      });
+      svg._built=true;
+    }
+    return { left: $('#pl'), right: $('#pr') };
+  }
+
+  function pathLength(el){ try{ return el.getTotalLength(); }catch(e){ return 400; } }
+
+  let tickerId=null, resizeStopTimer=null;
+  function updateGeometryFrame(){
+    sizeOverlay();
+    updateSmoothSizes();
+
+    const rC1=$('#co1 .callout-box').getBoundingClientRect();
+    const rC2=$('#co2 .callout-box').getBoundingClientRect();
+    const pL_from = { x: rC1.right, y: rC1.top + rC1.height/2 };
+    const pR_from = { x: rC2.left,  y: rC2.top + rC2.height/2 };
+    const pRole   = rectCenter($('#pinRole').getBoundingClientRect());
+    const pCritic = rectCenter($('#pinCritic').getBoundingClientRect());
+
+    placeDot('dot-l-to', pRole);
+    placeDot('dot-r-to', pCritic);
+    placeDot('dot-l-from', pL_from);
+    placeDot('dot-r-from', pR_from);
+
+    const paths = ensurePaths();
+    paths.left.setAttribute('d',  sPath(pRole,  pL_from));
+    paths.right.setAttribute('d', sPath(pCritic,pR_from));
+
+    tickerId = requestAnimationFrame(updateGeometryFrame);
+  }
+  
+  function startTicker(){ if (tickerId===null){ tickerId=requestAnimationFrame(updateGeometryFrame); } }
+  function stopTicker(){ if (tickerId!==null){ cancelAnimationFrame(tickerId); tickerId=null; } }
+  function placeDot(id,p){ const d=$('#'+id); d.style.left=p.x+'px'; d.style.top=p.y+'px'; }
+
+  async function drawPathAnimated(pathEl, fromPoint, toPoint){
+    pathEl.setAttribute('d', sPath(fromPoint, toPoint));
+    const L = pathLength(pathEl);
+
+    pathEl.style.transition = 'none';
+    pathEl.style.strokeDasharray = `${L}`;
+    pathEl.style.strokeDashoffset = `${L}`;
+    pathEl.getBoundingClientRect();
+
+    pathEl.style.opacity = '1';
+    pathEl.style.transition =
+      `opacity var(--fade) var(--ease), stroke-dashoffset var(--line) var(--ease)`;
+    pathEl.style.strokeDashoffset = '0';
+
+    await new Promise(res => pathEl.addEventListener('transitionend', res, { once:true }));
+  }
+
+  // === Team data ===
+  const teamData = [
+    { role: 'Policy', personality: 'Visionary', color: 'visionary' },
+    { role: 'Operations', personality: 'Pragmatist', color: 'pragmatist' },
+    { role: 'Risk', personality: 'Cautious', color: 'cautious' },
+    { role: 'Finance', personality: 'Critic', color: 'critic' },
+    { role: 'Data', personality: 'Innovator', color: 'innovator' },
+    { role: 'Community', personality: 'Mediator', color: 'mediator' }
+  ];
+
+  // === Phase B functions ===
+  function generateTeamCards() {
+    const teamGrid = $('#teamGrid');
+    teamGrid.innerHTML = '';
+
+    teamData.forEach((agent, index) => {
+      const card = document.createElement('div');
+      card.className = 'agent-card';
+      card.style.animationDelay = `${index * 0.15}s`; // Fast stagger
+      
+      card.innerHTML = `
+        <div class="agent-icon personality-${agent.color}">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="10" r="3" fill="#fff"/>
+            <path d="M6 20c0-4 2.5-6 6-6s6 2 6 6" fill="#fff" opacity=".8"/>
+          </svg>
+        </div>
+        <div class="agent-name">${agent.role}</div>
+        <div class="agent-style">${agent.personality}</div>
+      `;
+      
+      teamGrid.appendChild(card);
+    });
+  }
+
+  async function switchToTeamPhase() {
+    const phaseCreation = $('#phase-creation');
+    const phaseTeam = $('#phase-team');
+    const teamTitle = $('#teamTitle');
+    const continueBtn = $('#continueToDiscussion');
+    
+    // Fade out creation phase
+    phaseCreation.classList.remove('active');
+    await wait(600);
+    
+    // Generate team cards
+    generateTeamCards();
+    
+    // Fade in team phase
+    phaseTeam.classList.add('active');
+    
+    // Show title immediately
+    teamTitle.classList.add('show');
+    await wait(200);
+    
+    // Show all cards quickly with stagger
+    const cards = document.querySelectorAll('.agent-card');
+    cards.forEach(card => card.classList.add('show'));
+    
+    // Show continue button after cards appear (total ~1.5s)
+    await wait(1500);
+    continueBtn.classList.add('show');
+  }
+
+  // === Initialize Phase A ===
+  (async function init(){
+    await wait(50);
+    $('#card').classList.add('show');
+
+    await wait(200);
+    $('#avatar').classList.add('show');
+
+    sizeOverlay();
+    startTicker();
+
+    setupSmoothResize('#card', .05, false, false);
+    setupSmoothResize('#co1 .callout-box', .05);
+    setupSmoothResize('#co2 .callout-box', .05);
+
+    try{ if(document.fonts) await document.fonts.ready; }catch(e){}
+
+    const paths = ensurePaths();
+
+    // Sequence A (Finance → left callout)
+    await wait(220);
+    await typeText($('#role'),'Finance');
+    $('#dot-l-to').classList.add('show');
+
+    await wait(220);
+    await drawPathAnimated(
+      paths.left,
+      rectCenter($('#pinRole').getBoundingClientRect()),
+      { x: $('#co1 .callout-box').getBoundingClientRect().right,
+        y: $('#co1 .callout-box').getBoundingClientRect().top + $('#co1 .callout-box').getBoundingClientRect().height/2 }
+    );
+
+    $('#dot-l-from').classList.add('show');
+    await wait(160);
+    $('#co1').classList.add('show');
+    await typeText($('#co1t'),'The system picks specialists most likely involved in solving this challenge.', 18);
+
+    // Sequence B (Critic → right callout)
+    await wait(420);
+    await typeText($('#personality'),'Critic', 56);
+    $('#dot-r-to').classList.add('show');
+
+    await wait(220);
+    await drawPathAnimated(
+      paths.right,
+      rectCenter($('#pinCritic').getBoundingClientRect()),
+      { x: $('#co2 .callout-box').getBoundingClientRect().left,
+        y: $('#co2 .callout-box').getBoundingClientRect().top + $('#co2 .callout-box').getBoundingClientRect().height/2 }
+    );
+
+    $('#dot-r-from').classList.add('show');
+    await wait(160);
+    $('#co2').classList.add('show');
+    await typeText($('#co2t'),'We add different mindsets to keep the team balanced.', 18);
+
+    // Show Continue button
+    await wait(300);
+    $('#next').classList.add('show');
+
+    stopTicker();
+    setTimeout(() => releaseSmoothResize('#card, #co1 .callout-box, #co2 .callout-box'), 350);
+    
+    window.addEventListener('resize', () => {
+      startTicker(); clearTimeout(window.__rsz); window.__rsz = setTimeout(()=>stopTicker(), 500);
+    });
+    window.addEventListener('scroll', () => {
+      startTicker(); clearTimeout(window.__scr); window.__scr = setTimeout(()=>stopTicker(), 400);
+    }, { passive:true });
+
+    const ro = new ResizeObserver(() => {
+      startTicker(); clearTimeout(window.__obs); window.__obs = setTimeout(()=>stopTicker(), 300);
+    });
+    ['#roleWrap','#personalityWrap','#pinRole','#pinCritic','#co1 .callout-box','#co2 .callout-box'].forEach(s=>ro.observe($(s)));
+
+    // Wire up Continue button to switch phases
+    $('#next').addEventListener('click', switchToTeamPhase);
+  })();
+
+  // Continue to Discussion button
+  $('#continueToDiscussion').addEventListener('click', () => {
+    alert('Proceeding to Screen 3: Team Discussion Network...');
+  });
+</script>
+</body>
+</html>

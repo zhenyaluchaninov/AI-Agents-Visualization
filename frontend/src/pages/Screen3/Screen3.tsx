@@ -1,0 +1,507 @@
+import { useEffect, useRef } from 'react';
+import styles from './Screen3.module.css';
+
+const ENABLE_CONTROLS_DEFAULT = true;
+
+export default function Screen3() {
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => root.querySelector<T>(`#${id}`)!;
+
+    const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const vp = $('vp') as HTMLDivElement;
+    const neon = $('layer-neon') as HTMLCanvasElement;
+    const edgesCanvas = $('layer-edges') as HTMLCanvasElement;
+    const vigCanvas = $('layer-vignette') as HTMLCanvasElement;
+    const nctx = neon.getContext('2d')!;
+    const ectx = edgesCanvas.getContext('2d')!;
+    const vctx = vigCanvas.getContext('2d')!;
+
+    let W = 0, H = 0, lastT = performance.now();
+    let panelOpen = false;
+
+    function resize() {
+      const r = vp.getBoundingClientRect();
+      W = neon.width = Math.floor(r.width * DPR);
+      H = neon.height = Math.floor(r.height * DPR);
+      edgesCanvas.width = W; edgesCanvas.height = H;
+      vigCanvas.width = W; vigCanvas.height = H;
+      [neon, edgesCanvas, vigCanvas].forEach((c) => { c.style.width = r.width + 'px'; c.style.height = r.height + 'px'; });
+      buildAnchors();
+      buildAgentNodes();
+      reseedParticles(params.MAX);
+      placeAgents();
+    }
+
+    const hasControls = !!root.querySelector('#controls');
+    const ui = hasControls ? {
+      nodes: $('nodes') as HTMLInputElement,
+      link: $('link') as HTMLInputElement,
+      pspeed: $('pspeed') as HTMLInputElement,
+      psize: $('psize') as HTMLInputElement,
+      lifeless: $('lifeless') as HTMLInputElement,
+      thickP: $('thickP') as HTMLInputElement,
+      thickA: $('thickA') as HTMLInputElement,
+      plinkOpaqueAt: $('plinkOpaqueAt') as HTMLInputElement,
+      glowLinks: $('glowLinks') as HTMLInputElement,
+      color: $('color') as HTMLInputElement,
+      linkColor: $('linkColor') as HTMLInputElement,
+      trailSize: $('trailSize') as HTMLInputElement,
+      trailColor: $('trailColor') as HTMLInputElement,
+      life: $('life') as HTMLInputElement,
+      spacingMin: $('spacingMin') as HTMLInputElement,
+      spacingMax: $('spacingMax') as HTMLInputElement,
+      blur: $('blur') as HTMLInputElement,
+      holeR: $('holeR') as HTMLInputElement,
+      nodesVal: $('nodesVal') as HTMLSpanElement,
+      linkVal: $('linkVal') as HTMLSpanElement,
+      pspeedVal: $('pspeedVal') as HTMLSpanElement,
+      psizeVal: $('psizeVal') as HTMLSpanElement,
+      thickPVal: $('thickPVal') as HTMLSpanElement,
+      thickAVal: $('thickAVal') as HTMLSpanElement,
+      plinkOpaqueAtVal: $('plinkOpaqueAtVal') as HTMLSpanElement,
+      glowLinksVal: $('glowLinksVal') as HTMLSpanElement,
+      lifeVal: $('lifeVal') as HTMLSpanElement,
+      spacingMinVal: $('spacingMinVal') as HTMLSpanElement,
+      spacingMaxVal: $('spacingMaxVal') as HTMLSpanElement,
+      blurVal: $('blurVal') as HTMLSpanElement,
+      holeRVal: $('holeRVal') as HTMLSpanElement,
+      trailSizeVal: $('trailSizeVal') as HTMLSpanElement,
+      trailColorVal: $('trailColorVal') as HTMLSpanElement,
+      rand: $('rand') as HTMLButtonElement,
+      bg1: $('bg1') as HTMLInputElement,
+      bg2: $('bg2') as HTMLInputElement,
+      bg1Val: $('bg1Val') as HTMLSpanElement,
+      bg2Val: $('bg2Val') as HTMLSpanElement,
+      vigColor: $('vigColor') as HTMLInputElement,
+      vigStrength: $('vigStrength') as HTMLInputElement,
+      vigColorVal: $('vigColorVal') as HTMLSpanElement,
+      vigStrengthVal: $('vigStrengthVal') as HTMLSpanElement,
+      attr: $('attr') as HTMLInputElement,
+      attrVal: $('attrVal') as HTMLSpanElement,
+      attrR: $('attrR') as HTMLInputElement,
+      attrRVal: $('attrRVal') as HTMLSpanElement,
+      linkColorVal: $('linkColorVal') as HTMLSpanElement,
+    } : ({} as any);
+
+    const defaultParams = {
+      // Defaults per the latest screenshot
+      MAX: 79,
+      HOLE_R: 251,
+      SPACING_MIN: 30,
+      SPACING_MAX: 116,
+      P_SPEED: 0.16,
+      P_SIZE: 0.3,
+      MEAN_LIFE: 5,
+      ATTR: 0.120,
+      ATTR_R: 234,
+      LINK_DIST: 182,
+      THICK_P: 1,
+      THICK_A: 2,
+      P_LINK_OPQ_FRAC: 0.50,
+      BLUR: 0,
+      GLOW_LINKS: 20,
+      LINK_ORB_SIZE: 3,
+      // Colors from screenshot + brand
+      COLOR: '#a298f2',        // particles accent (brand light)
+      LINK_COLOR: '#8b7df0',   // agent links (brand primary)
+      LINK_ORB_COLOR: '#8280ff',
+      BG1: '#ffffff',          // inner
+      BG2: '#d3d0f0',          // outer per new screenshot
+      VIG_COLOR: '#a0beda',
+      VIG_STRENGTH: 0.10,
+      LIFELESS: false,
+    };
+
+    const params = hasControls ? {
+      MAX: parseInt(ui.nodes.value, 10),
+      LINK_DIST: parseInt(ui.link.value, 10),
+      P_SPEED: parseInt(ui.pspeed.value, 10) / 100,
+      P_SIZE: parseFloat(ui.psize.value),
+      THICK_P: parseInt(ui.thickP.value, 10),
+      THICK_A: parseInt(ui.thickA.value, 10),
+      P_LINK_OPQ_FRAC: parseInt(ui.plinkOpaqueAt.value, 10) / 100,
+      GLOW_LINKS: parseInt(ui.glowLinks.value, 10),
+      COLOR: ui.color.value,
+      LINK_COLOR: ui.linkColor.value,
+      LINK_ORB_SIZE: parseInt(ui.trailSize.value, 10),
+      LINK_ORB_COLOR: ui.trailColor.value,
+      BG1: ui.bg1.value, BG2: ui.bg2.value,
+      VIG_COLOR: ui.vigColor.value, VIG_STRENGTH: parseInt(ui.vigStrength.value, 10) / 100,
+      ATTR: parseInt(ui.attr.value, 10) / 100,
+      ATTR_R: parseInt(ui.attrR.value, 10),
+      MEAN_LIFE: parseInt(ui.life.value, 10),
+      SPACING_MIN: parseInt(ui.spacingMin.value, 10),
+      SPACING_MAX: parseInt(ui.spacingMax.value, 10),
+      BLUR: parseInt(ui.blur.value, 10),
+      LIFELESS: !!ui.lifeless.checked,
+      HOLE_R: parseInt(ui.holeR.value, 10),
+    } : { ...defaultParams };
+
+    function sync() {
+      if (!hasControls) return;
+      ui.nodesVal.textContent = String(params.MAX);
+      ui.linkVal.textContent = String(params.LINK_DIST);
+      ui.pspeedVal.textContent = params.P_SPEED.toFixed(2);
+      ui.psizeVal.textContent = params.P_SIZE.toFixed(1);
+      ui.thickPVal.textContent = String(params.THICK_P);
+      ui.thickAVal.textContent = String(params.THICK_A);
+      ui.glowLinksVal.textContent = String(params.GLOW_LINKS);
+      ui.plinkOpaqueAtVal.textContent = Math.round(params.P_LINK_OPQ_FRAC * 100) + '%';
+      ui.bg1Val.textContent = params.BG1; ui.bg2Val.textContent = params.BG2; ui.linkColorVal.textContent = params.LINK_COLOR;
+      ui.vigColorVal.textContent = params.VIG_COLOR; ui.vigStrengthVal.textContent = params.VIG_STRENGTH.toFixed(2);
+      ui.attrVal.textContent = params.ATTR.toFixed(3); ui.attrRVal.textContent = String(params.ATTR_R);
+      ui.lifeVal.textContent = String(params.MEAN_LIFE);
+      ui.spacingMinVal.textContent = String(params.SPACING_MIN);
+      ui.spacingMaxVal.textContent = String(params.SPACING_MAX);
+      ui.blurVal.textContent = String(params.BLUR);
+      ui.trailSizeVal.textContent = String(params.LINK_ORB_SIZE);
+      ui.trailColorVal.textContent = params.LINK_ORB_COLOR;
+      ui.holeRVal.textContent = String(params.HOLE_R);
+    }
+
+    if (hasControls) {
+      [ui.link, ui.pspeed, ui.psize, ui.thickP, ui.thickA, ui.plinkOpaqueAt, ui.glowLinks, ui.attr, ui.attrR, ui.life, ui.blur, ui.trailSize, ui.holeR]
+        .forEach((inp: HTMLInputElement) => inp.addEventListener('input', () => {
+          params.LINK_DIST = parseInt(ui.link.value, 10);
+          params.P_SPEED = parseInt(ui.pspeed.value, 10) / 100;
+          params.P_SIZE = parseFloat(ui.psize.value);
+          params.THICK_P = parseInt(ui.thickP.value, 10);
+          params.THICK_A = parseInt(ui.thickA.value, 10);
+          params.P_LINK_OPQ_FRAC = parseInt(ui.plinkOpaqueAt.value, 10) / 100;
+          params.GLOW_LINKS = parseInt(ui.glowLinks.value, 10);
+          params.ATTR = parseInt(ui.attr.value, 10) / 100;
+          params.ATTR_R = parseInt(ui.attrR.value, 10);
+          params.MEAN_LIFE = parseInt(ui.life.value, 10);
+          params.BLUR = parseInt(ui.blur.value, 10);
+          params.LINK_ORB_SIZE = parseInt(ui.trailSize.value, 10);
+          params.HOLE_R = parseInt(ui.holeR.value, 10);
+          sync();
+        }));
+      ui.spacingMin.addEventListener('input', () => { params.SPACING_MIN = parseInt(ui.spacingMin.value, 10); randomizeNodeSpacings(); sync(); });
+      ui.spacingMax.addEventListener('input', () => { params.SPACING_MAX = parseInt(ui.spacingMax.value, 10); randomizeNodeSpacings(); sync(); });
+      ui.holeR.addEventListener('change', () => { reseedParticles(params.MAX); });
+      ui.lifeless.addEventListener('change', () => { params.LIFELESS = !!ui.lifeless.checked; });
+      ui.nodes.addEventListener('input', () => { params.MAX = parseInt(ui.nodes.value, 10); sync(); reseedParticles(params.MAX); });
+      ui.color.addEventListener('input', () => { params.COLOR = ui.color.value; });
+      ui.linkColor.addEventListener('input', () => { params.LINK_COLOR = ui.linkColor.value; ui.linkColorVal.textContent = params.LINK_COLOR; });
+      ui.trailColor.addEventListener('input', () => { params.LINK_ORB_COLOR = ui.trailColor.value; ui.trailColorVal.textContent = params.LINK_ORB_COLOR; });
+      ui.rand.addEventListener('click', () => { const h = Math.floor(Math.random() * 360); params.COLOR = `hsl(${h} 100% 70%)`; ui.color.value = rgbToHex(hslToRgb(h / 360, 1, .7)); });
+      ui.bg1.addEventListener('input', () => { params.BG1 = ui.bg1.value; ui.bg1Val.textContent = params.BG1; });
+      ui.bg2.addEventListener('input', () => { params.BG2 = ui.bg2.value; ui.bg2Val.textContent = params.BG2; });
+      ui.vigColor.addEventListener('input', () => { params.VIG_COLOR = ui.vigColor.value; ui.vigColorVal.textContent = params.VIG_COLOR; });
+      ui.vigStrength.addEventListener('input', () => { params.VIG_STRENGTH = parseInt(ui.vigStrength.value, 10) / 100; ui.vigStrengthVal.textContent = params.VIG_STRENGTH.toFixed(2); });
+      sync();
+    }
+
+    const mouse = { x: null as number | null, y: null as number | null };
+    vp.addEventListener('mousemove', (e) => { const r = vp.getBoundingClientRect(); mouse.x = (e.clientX - r.left) * DPR; mouse.y = (e.clientY - r.top) * DPR; });
+    vp.addEventListener('mouseleave', () => { mouse.x = mouse.y = null; });
+
+    const AGENTS = [
+      { id: 'A1', name: 'Research' }, { id: 'A2', name: 'Strategy' }, { id: 'A3', name: 'Design' },
+      { id: 'A4', name: 'Product' }, { id: 'A5', name: 'Engineer' }, { id: 'A6', name: 'Ops' },
+    ];
+
+    const anchors: { x: number; y: number; angle: number }[] = [];
+    function buildAnchors() {
+      anchors.length = 0;
+      const cx = W / 2, cy = H / 2, baseR = Math.min(W, H) * 0.24;
+      for (let i = 0; i < AGENTS.length; i++) {
+        const angle = -Math.PI / 2 + i * (Math.PI * 2 / AGENTS.length);
+        anchors.push({ x: cx + Math.cos(angle) * baseR, y: cy + Math.sin(angle) * baseR, angle });
+      }
+    }
+
+    const agentsLayer = $('agents') as HTMLDivElement;
+    const agentEls = new Map<string, HTMLDivElement>();
+    const chatPins = new Map<string, HTMLButtonElement>();
+    const AGENT_COLORS: Record<string, string> = {
+      // mapped from Screen2 persona palette
+      A1: '#9d8ed4', // Research → Visionary
+      A2: '#6ab59d', // Strategy → Pragmatist
+      A3: '#ff9d5c', // Design → Innovator
+      A4: '#7dd3c0', // Product → Mediator
+      A5: '#6ba3d4', // Engineer → Cautious
+      A6: '#ff6b6b', // Ops → Critic
+    };
+    function mountAgents() {
+      agentsLayer.innerHTML = '';
+      agentEls.clear(); chatPins.clear();
+      AGENTS.forEach((a) => {
+        const el = document.createElement('div'); el.className = 'agent'; el.innerHTML = '<div class="label"></div>';
+        (el.querySelector('.label') as HTMLDivElement).textContent = a.name;
+        // Tint agent chip in the same style as chat pin
+        const col = AGENT_COLORS[a.id] || '#8b7df0';
+        el.style.background = hexToRgba(col, 0.22);
+        el.style.borderColor = hexToRgba(col, 0.65);
+        el.style.boxShadow = `0 8px 20px ${hexToRgba(col, 0.35)}`;
+        agentsLayer.appendChild(el); agentEls.set(a.id, el);
+        const pin = document.createElement('button'); pin.className = 'chatpin'; pin.textContent = '💬';
+        const col2 = AGENT_COLORS[a.id] || '#8b7df0';
+        pin.style.background = hexToRgba(col2, 0.28);
+        pin.style.borderColor = hexToRgba(col2, 0.75);
+        pin.style.color = '#fff';
+        pin.style.boxShadow = `0 8px 20px ${hexToRgba(col2, 0.35)}`;
+        pin.addEventListener('click', () => openChatForAgent(a.id)); agentsLayer.appendChild(pin); chatPins.set(a.id, pin);
+      });
+    }
+    function placeAgents() {
+      for (let i = 0; i < AGENTS.length; i++) {
+        const el = agentEls.get(AGENTS[i].id)!; const pin = chatPins.get(AGENTS[i].id)!; const p = anchors[i]; if (!el || !pin || !p) continue;
+        const x = p.x / DPR, y = p.y / DPR; el.style.left = x + 'px'; el.style.top = y + 'px'; pin.style.left = x + 'px'; pin.style.top = (y - 30) + 'px';
+      }
+    }
+
+    let agentNodes: { id: string; x: number; y: number }[] = [];
+    function buildAgentNodes() { agentNodes = AGENTS.map((a, i) => ({ id: a.id, x: anchors[i]?.x || 0, y: anchors[i]?.y || 0 })); }
+    function updateAgentNodes() { for (let i = 0; i < agentNodes.length; i++) { agentNodes[i].x = anchors[i].x; agentNodes[i].y = anchors[i].y; } }
+
+    const edges = [['A1', 'A3'], ['A1', 'A4'], ['A2', 'A5'], ['A2', 'A6'], ['A3', 'A5'], ['A4', 'A6'], ['A5', 'A6']]
+      .map((e, i) => ({ id: 'E' + (i + 1), from: e[0], to: e[1], seed: Math.random() }));
+    let activeEdgeId: string | null = null, activeEdgeSince = 0;
+    // Ambient link shimmer state
+    let ambientAlpha = 1; // fades out when chat active
+    let ambientActive = new Set<string>();
+    let ambientLastSwitch = 0;
+
+    const panel = $('panel') as HTMLDivElement;
+    const panelBody = $('panelBody') as HTMLDivElement;
+    const closePanel = $('closePanel') as HTMLButtonElement;
+    const continueBtn = $('continueBtn') as HTMLButtonElement;
+    let unlockedCTA = false;
+    closePanel.addEventListener('click', () => { panel.classList.remove('open'); panel.setAttribute('aria-hidden', 'true'); activeEdgeId = null; panelOpen = false; });
+    function initials(label: string) { return label.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
+    function openChat(edge: { id: string; from: { x: number; y: number; name: string }; to: { x: number; y: number; name: string } }) {
+      if (!unlockedCTA) { unlockedCTA = true; continueBtn.classList.add('enabled'); continueBtn.disabled = false; }
+      panelBody.innerHTML = '';
+      const msgs = [
+        { who: edge.from.name, text: 'Sharing latest findings. Passing key insights to you now.' },
+        { who: edge.to.name, text: 'Received. Translating into actionable strategy options.' },
+        { who: edge.from.name, text: 'Prioritize the cost-sensitive segment; signal is strong.' },
+        { who: edge.to.name, text: 'Copy. Drafting two scenarios; will loop in Engineering next.' },
+      ];
+      msgs.forEach((m) => { const row = document.createElement('div'); row.className = 'msg';
+        const av = document.createElement('div'); av.className = 'av'; av.textContent = initials(m.who);
+        const bubble = document.createElement('div'); bubble.className = 'bubble'; bubble.textContent = m.text;
+        row.appendChild(av); row.appendChild(bubble); panelBody.appendChild(row); });
+      panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false'); panelOpen = true;
+    }
+    function currentAgentMap() { const m = new Map<string, { x: number; y: number; name: string }>(); for (let i = 0; i < AGENTS.length; i++) { const p = anchors[i]; m.set(AGENTS[i].id, { x: p.x, y: p.y, name: AGENTS[i].name }); } return m; }
+    function openChatForAgent(agentId: string) {
+      const e = edges.find((E) => E.from === agentId || E.to === agentId); if (!e) return;
+      const amap = currentAgentMap(); const edge = { id: e.id, from: amap.get(e.from)!, to: amap.get(e.to)! };
+      activeEdgeId = e.id; activeEdgeSince = performance.now(); openChat(edge);
+    }
+
+    class PNode {
+      x = 0; y = 0; vx = 0; vy = 0; r = 1; pulse = 0; age = 0; life = 0; cx = 0; cy = 0; cvx = 0; cvy = 0; ox = 0; oy = 0; sep = 20;
+      constructor(cx: number, cy: number) { this.reset(true, { x: cx, y: cy }); this.cx = cx; this.cy = cy; this.pulse = Math.random(); }
+      reset(_initial = false, pos: { x: number; y: number } | null = null) {
+        const start = pos || { x: Math.random() * W, y: Math.random() * H };
+        this.x = start.x; this.y = start.y;
+        const a = Math.random() * Math.PI * 2; const speed = (Math.random() * 0.7 + 0.3) * params.P_SPEED * 2.0 * DPR;
+        this.vx = Math.cos(a) * speed; this.vy = Math.sin(a) * speed;
+        this.r = (Math.random() * 1.6 + 0.5) * DPR; this.pulse = Math.random(); this.life = (params.MEAN_LIFE * (0.6 + Math.random() * 0.8));
+        this.age = 0; if ((this as any).cx === undefined) { this.cx = this.x; this.cy = this.y; }
+        this.cvx = 0; this.cvy = 0; this.ox = 0; this.oy = 0;
+        const minS = Math.min(params.SPACING_MIN, params.SPACING_MAX); const maxS = Math.max(params.SPACING_MIN, params.SPACING_MAX);
+        this.sep = minS + Math.random() * Math.max(0, maxS - minS);
+      }
+      step(dt: number) {
+        const spring = 0.07; const dxc = this.cx - this.x, dyc = this.cy - this.y; this.vx += dxc * spring * dt; this.vy += dyc * spring * dt;
+        if (mouse.x !== null) { const dx = mouse.x - this.x, dy = mouse.y - this.y; const dist = Math.hypot(dx, dy) + 1e-3; const R = params.ATTR_R * DPR; if (dist < R) { const falloff = (1 - dist / R); const force = params.ATTR * 28 * falloff; this.vx += (dx / dist) * force * dt; this.vy += (dy / dist) * force * dt; } }
+        const curl = 0.22 * (params.LIFELESS ? 0.6 : 1.0); const ox = -this.vy, oy = this.vx; this.vx += ox * 0.02 * curl * dt; this.vy += oy * 0.02 * curl * dt;
+        const damp = 0.985; this.vx *= Math.pow(damp, dt * 60); this.vy *= Math.pow(damp, dt * 60); this.x += this.vx * dt * 60; this.y += this.vy * dt * 60; this.pulse += 0.02 * dt * 60; this.age += dt; if (this.age > this.life && !params.LIFELESS) { this.respawn(); }
+      }
+      renderPos(_dt: number) { return { x: this.x, y: this.y }; }
+      respawn() { const pos = randomCellPosition(); this.cx = pos.x; this.cy = pos.y; this.reset(true, pos); }
+      fadeAlpha() { const tIn = Math.min(1, this.age / 0.35); if (params.LIFELESS) return tIn; const tOut = Math.min(1, Math.max(0, (this.life - this.age) / 0.45)); return tIn * tOut; }
+      draw(ctx: CanvasRenderingContext2D, dt: number) { const tw = 0.6 + Math.sin(this.pulse) * 0.35; const a = this.fadeAlpha(); if (a <= 0) return; ctx.globalAlpha = 0.55 * a; const rr = this.r * params.P_SIZE; const p = this.renderPos(dt); ctx.beginPath(); ctx.arc(p.x, p.y, rr * tw, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
+    }
+
+    let nodes: PNode[] = [];
+    let gridCols = 0, gridRows = 0, cellW = 0, cellH = 0;
+    function computeGrid(n: number) { gridCols = Math.max(4, Math.floor(Math.sqrt(n))); gridRows = Math.max(4, Math.round(n / gridCols)); cellW = W / gridCols; cellH = H / gridRows; }
+    function acceptPos(px: number, py: number) { const R0 = (params.HOLE_R || 0) * DPR; if (R0 <= 0) return true; const dx = px - W / 2, dy = py - H / 2; const r = Math.hypot(dx, dy); const fade = 60 * DPR; const Rf = R0 + fade; if (r <= R0) return false; if (r >= Rf) return true; const p = (r - R0) / (Rf - R0); return Math.random() < p; }
+    function randomCellPosition() { let tries = 0; while (true) { const c = Math.floor(Math.random() * gridCols); const r = Math.floor(Math.random() * gridRows); const px = (c + Math.random()) * cellW; const py = (r + Math.random()) * cellH; if (acceptPos(px, py)) return { x: px, y: py }; tries++; if (tries > 8) { const R0 = (params.HOLE_R || 0) * DPR; const fade = 60 * DPR; const base = R0 + fade + 10 * DPR; const rr = base + Math.random() * Math.max(W, H) * 0.3; const ang = Math.random() * Math.PI * 2; const px2 = W / 2 + Math.cos(ang) * rr; const py2 = H / 2 + Math.sin(ang) * rr; return { x: px2, y: py2 }; } } }
+    function reseedParticles(nCount: number) { nodes.length = 0; const n = Math.max(1, nCount | 0); computeGrid(n); let added = 0; for (let r = 0; r < gridRows; r++) { for (let c = 0; c < gridCols; c++) { if (added >= n) break; const px = (c + Math.random()) * cellW; const py = (r + Math.random()) * cellH; let pos = { x: px, y: py }; if (!acceptPos(pos.x, pos.y)) pos = randomCellPosition(); nodes.push(new PNode(pos.x, pos.y)); added++; } } while (nodes.length < n) { const p = randomCellPosition(); nodes.push(new PNode(p.x, p.y)); } }
+    function randomizeNodeSpacings() { const minS = Math.min(params.SPACING_MIN, params.SPACING_MAX); const maxS = Math.max(params.SPACING_MIN, params.SPACING_MAX); for (let i = 0; i < nodes.length; i++) { nodes[i].sep = minS + Math.random() * Math.max(0, maxS - minS); } }
+
+    let rafId: number | null = null;
+    function drawBackground() { nctx.clearRect(0, 0, W, H); const g = nctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7); g.addColorStop(0, hexToRgba(params.BG1, 1.0)); g.addColorStop(1, hexToRgba(params.BG2, 1.0)); nctx.fillStyle = g; nctx.fillRect(0, 0, W, H); }
+    function drawVignette() { vctx.clearRect(0, 0, W, H); if (params.VIG_STRENGTH <= 0) return; const g = vctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.2, W / 2, H / 2, Math.max(W, H) * 0.7); const rgba = hexToRgb(params.VIG_COLOR); vctx.globalCompositeOperation = 'source-over'; g.addColorStop(0, `rgba(${rgba.r},${rgba.g},${rgba.b},0)`); g.addColorStop(1, `rgba(${rgba.r},${rgba.g},${rgba.b},${params.VIG_STRENGTH})`); vctx.fillStyle = g; vctx.fillRect(0, 0, W, H); }
+    function spacingForces() { const k = 12; for (let i = 0; i < nodes.length; i++) { const a = nodes[i]; for (let j = i + 1; j < nodes.length; j++) { const b = nodes[j]; const dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy; const S = Math.max(4, ((a.sep || params.SPACING_MIN) + (b.sep || params.SPACING_MIN)) * 0.5) * DPR; const S2 = S * S; if (d2 < S2 && d2 > 1) { const d = Math.sqrt(d2); const push = (1 - d / S) * (k / d); const fx = dx * push, fy = dy * push; a.vx += fx * 0.001; a.vy += fy * 0.001; b.vx -= fx * 0.001; b.vy -= fy * 0.001; } } } }
+    function tick() {
+      const now = performance.now();
+      const dt = Math.min(0.033, (now - lastT) / 1000);
+      lastT = now;
+      drawBackground();
+      spacingForces();
+      nctx.save(); nctx.globalCompositeOperation = isColorBlackish(params.COLOR) ? 'source-over' : 'lighter'; nctx.shadowBlur = 0; nctx.shadowColor = 'transparent'; nctx.fillStyle = colorWithAlpha(params.COLOR, 1.0); nctx.filter = params.BLUR > 0 ? `blur(${params.BLUR}px)` : 'none';
+      nodes.forEach((n) => { n.step(dt); n.draw(nctx, dt); });
+      const L = params.LINK_DIST * DPR, L2 = L * L; nctx.lineWidth = params.THICK_P * DPR * 0.35; nctx.strokeStyle = colorWithAlpha(params.COLOR, 1.0);
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i]; const ap = a.renderPos(dt); const af = a.fadeAlpha(); if (af <= 0) continue;
+        for (let j = i + 1; j < nodes.length; j++) {
+          const b = nodes[j]; const bp = b.renderPos(dt); const bf = b.fadeAlpha(); if (bf <= 0) continue;
+          const dx = ap.x - bp.x, dy = ap.y - bp.y, d2 = dx * dx + dy * dy; if (d2 < L2) {
+            const d = Math.sqrt(d2); const opaqueAt = Math.max(1, L * params.P_LINK_OPQ_FRAC); const t = Math.max(0, Math.min(1, 1 - (d / opaqueAt)));
+            const base = t; const alpha = Math.max(0, Math.min(1, base * af * bf)); if (alpha > 0.001) { nctx.globalAlpha = alpha; nctx.beginPath(); nctx.moveTo(ap.x, ap.y); nctx.lineTo(bp.x, bp.y); nctx.stroke(); }
+          }
+        }
+      }
+      nctx.globalAlpha = 0.9;
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i]; const ap = a.renderPos(dt); const af = a.fadeAlpha(); if (af <= 0) continue;
+        for (let j = 0; j < agentNodes.length; j++) {
+          const b = agentNodes[j]; const dx = ap.x - b.x, dy = ap.y - b.y, d2 = dx * dx + dy * dy; if (d2 < L2) {
+            const d = Math.sqrt(d2); const opaqueAt = Math.max(1, L * params.P_LINK_OPQ_FRAC); const t = Math.max(0, Math.min(1, 1 - (d / opaqueAt)));
+            const base = t; const alpha = Math.max(0, Math.min(1, base * af)); if (alpha <= 0.001) continue; nctx.globalAlpha = alpha; nctx.beginPath(); nctx.moveTo(ap.x, ap.y); nctx.lineTo(b.x, b.y); nctx.stroke();
+          }
+        }
+      }
+      nctx.globalAlpha = 1; nctx.restore();
+      placeAgents(); updateAgentNodes();
+      ectx.clearRect(0, 0, W, H); ectx.save(); ectx.globalCompositeOperation = isColorBlackish(params.LINK_COLOR) ? 'source-over' : 'lighter';
+      const baseWidth = params.THICK_A * DPR * 0.7, baseGlow = params.GLOW_LINKS * DPR * 0.7; const pulse = activeEdgeId ? (0.5 + 0.5 * Math.sin((performance.now() - activeEdgeSince) / 260)) : 0; const amap = currentAgentMap();
+      // Update ambient shimmer state
+      const targetAmb = activeEdgeId ? 0 : 1;
+      ambientAlpha += (targetAmb - ambientAlpha) * Math.min(1, dt * 3);
+      if (now - ambientLastSwitch > 2400) {
+        ambientActive = new Set<string>();
+        const k = 1 + Math.floor(Math.random() * 3); // 1..3 edges
+        for (let i = 0; i < k; i++) {
+          const pick = edges[Math.floor(Math.random() * edges.length)];
+          if (pick) ambientActive.add(pick.id);
+        }
+        ambientLastSwitch = now;
+      }
+      edges.forEach((E) => {
+        const A = amap.get(E.from), B = amap.get(E.to); if (!A || !B) return;
+        const isActive = (E.id === activeEdgeId);
+        ectx.lineWidth = isActive ? baseWidth * (1.0 + 0.9 * pulse) : baseWidth;
+        ectx.strokeStyle = colorWithAlpha(params.LINK_COLOR, isActive ? 1.0 : 0.85);
+        ectx.shadowBlur = isActive ? baseGlow * (1.2 + 0.8 * pulse) : baseGlow; ectx.shadowColor = params.LINK_COLOR; ectx.globalAlpha = isActive ? 1 : 0.95;
+        ectx.beginPath(); ectx.moveTo(A.x, A.y); ectx.lineTo(B.x, B.y); ectx.stroke();
+
+        if (isActive) {
+          // Active edge orbs
+          ectx.save();
+          const scale = panelOpen ? 1.5 : 1.0; const baseR = (params.LINK_ORB_SIZE || 3) * DPR; const orbR = baseR * scale; const N = 10; const tNow = (performance.now() / 1600) % 1;
+          for (let k = 0; k < N; k++) {
+            const tt = (tNow + k / N) % 1; const x = A.x + (B.x - A.x) * tt; const y = A.y + (B.y - A.y) * tt;
+            ectx.beginPath(); ectx.fillStyle = colorWithAlpha(params.LINK_ORB_COLOR || params.LINK_COLOR, 0.95);
+            ectx.shadowBlur = Math.max(8 * DPR, baseR * 1.6); ectx.shadowColor = params.LINK_ORB_COLOR || params.LINK_COLOR; ectx.arc(x, y, orbR, 0, Math.PI * 2); ectx.fill();
+          }
+          ectx.restore();
+        } else if (ambientAlpha > 0 && ambientActive.has(E.id)) {
+          // Ambient, subtle shimmer along non-active edges
+          ectx.save();
+          const baseR = Math.max(1.2 * DPR, (params.LINK_ORB_SIZE || 3) * DPR * 0.6);
+          const tNow = (performance.now() / 2200 + (E.seed || 0)) % 1;
+          const orbCount = 1;
+          for (let k = 0; k < orbCount; k++) {
+            const tt = (tNow + k / (orbCount || 1)) % 1; const x = A.x + (B.x - A.x) * tt; const y = A.y + (B.y - A.y) * tt;
+            ectx.beginPath();
+            ectx.globalAlpha = 0.30 * ambientAlpha; ectx.fillStyle = colorWithAlpha(params.LINK_COLOR, 0.9);
+            ectx.shadowBlur = Math.max(6 * DPR, baseR * 1.2); ectx.shadowColor = params.LINK_COLOR; ectx.arc(x, y, baseR, 0, Math.PI * 2); ectx.fill();
+          }
+          ectx.restore();
+        }
+      });
+      ectx.restore(); drawVignette(); rafId = requestAnimationFrame(tick);
+    }
+
+    function colorWithAlpha(c: string, a: number) { if (c.startsWith('#')) { const { r, g, b } = hexToRgb(c); return `rgba(${r},${g},${b},${a})`; } if (c.startsWith('hsl')) { return c.replace('hsl', 'hsla').replace(')', `, ${a})`); } return c; }
+    function isColorBlackish(c: string) { if (c.startsWith('#')) { const { r, g, b } = hexToRgb(c); const L = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; return L < 0.05; } if (c.startsWith('hsl')) { try { const m = c.match(/hsl[a]?\(([^)]+)\)/i); if (!m) return false; const parts = m[1].split(/[,\s]+/).filter(Boolean); const l = parts[2] || '0%'; const lv = parseFloat(l) / 100; return lv < 0.08; } catch { return false; } } return false; }
+    function hexToRgb(hex: string) { let h = hex.replace('#', ''); if (h.length === 3) { h = [h[0], h[0], h[1], h[1], h[2], h[2]].join(''); } const num = parseInt(h, 16); return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 }; }
+    function hexToRgba(hex: string, a: number) { const { r, g, b } = hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
+    function hslToRgb(h: number, s: number, l: number) { const a = s * Math.min(l, 1 - l); const f = (n: number) => { const k = (n + h * 12) % 12; const c = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1); return Math.round(255 * c); }; return [f(0), f(8), f(4)] as [number, number, number]; }
+    function rgbToHex([r, g, b]: [number, number, number]) { return '#' + [r, g, b].map((x) => x.toString(16).padStart(2, '0')).join(''); }
+
+    mountAgents();
+    resize();
+    rafId = requestAnimationFrame(tick);
+    window.addEventListener('resize', resize);
+
+    return () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+
+  return (
+    <div ref={rootRef} className={styles.root}>
+      {/* Floating background orbs (copied from Screen1) */}
+      <div className={`${styles.bgOrb} ${styles.orb1}`} />
+      <div className={`${styles.bgOrb} ${styles.orb2}`} />
+      <div className={`${styles.bgOrb} ${styles.orb3}`} />
+      <div className={styles.content}>
+        <div className={styles.title}>Agents are discussing</div>
+        <div className={styles.subtitle}>Tap a chat icon to peek inside.</div>
+
+        {ENABLE_CONTROLS_DEFAULT && (
+          <div className="ui" id="controls" aria-hidden={false}>
+            <h2>Neon Web</h2>
+            <details className="group" open>
+              <summary>Particles & Links</summary>
+              <div className="row"><label>Nodes</label><input id="nodes" type="range" min="1" max="170" defaultValue="79" /><span id="nodesVal">79</span></div>
+              <div className="row"><label>Inner Hole Radius (px)</label><input id="holeR" type="range" min="0" max="400" defaultValue="251" /><span id="holeRVal">251</span></div>
+              <div className="row"><label>Spacing Min (px)</label><input id="spacingMin" type="range" min="4" max="200" defaultValue="30" /><span id="spacingMinVal">30</span></div>
+              <div className="row"><label>Spacing Max (px)</label><input id="spacingMax" type="range" min="8" max="260" defaultValue="116" /><span id="spacingMaxVal">116</span></div>
+              <div className="row"><label>Particle Speed</label><input id="pspeed" type="range" min="0" max="100" defaultValue="16" /><span id="pspeedVal">0.16</span></div>
+              <div className="row"><label>Particle Size</label><input id="psize" type="range" min="0" max="3" step="0.1" defaultValue="0.3" /><span id="psizeVal">0.3</span></div>
+              <div className="row"><label>Mean Lifespan (s)</label><input id="life" type="range" min="1" max="12" defaultValue="5" /><span id="lifeVal">5</span></div>
+              <div className="row"><label>Static Particles</label><input id="lifeless" type="checkbox" /><span></span></div>
+              <div className="row"><label>Strength</label><input id="attr" type="range" min="0" max="30" step="1" defaultValue="12" /><span id="attrVal">0.120</span></div>
+              <div className="row"><label>Radius (px)</label><input id="attrR" type="range" min="40" max="400" defaultValue="234" /><span id="attrRVal">234</span></div>
+              <div className="row"><label>Link Distance</label><input id="link" type="range" min="40" max="300" defaultValue="182" /><span id="linkVal">182</span></div>
+              <div className="row"><label>Particle Link Thickness</label><input id="thickP" type="range" min="1" max="6" defaultValue="1" /><span id="thickPVal">1</span></div>
+              <div className="row"><label>Particle Links Opaque At (%)</label><input id="plinkOpaqueAt" type="range" min="20" max="100" defaultValue="50" /><span id="plinkOpaqueAtVal">50%</span></div>
+              <div className="row"><label>Accent (particles)</label><input id="color" type="color" defaultValue="#a298f2" /><button id="rand" className={styles.btn} type="button">Randomize</button></div>
+              <div className="row"><label>Blur (px)</label><input id="blur" type="range" min="0" max="8" defaultValue="0" /><span id="blurVal">0</span></div>
+            </details>
+            <details className="group" open>
+              <summary>Agents</summary>
+              <div className="row"><label>Link Color</label><input id="linkColor" type="color" defaultValue="#8b7df0" /><span id="linkColorVal">#8b7df0</span></div>
+              <div className="row"><label>Agent Link Thickness</label><input id="thickA" type="range" min="1" max="8" defaultValue="2" /><span id="thickAVal">2</span></div>
+              <div className="row"><label>Agent Links Glow</label><input id="glowLinks" type="range" min="0" max="40" defaultValue="20" /><span id="glowLinksVal">20</span></div>
+              <div className="row"><label>Trail Size (px)</label><input id="trailSize" type="range" min="1" max="10" defaultValue="3" /><span id="trailSizeVal">3</span></div>
+              <div className="row"><label>Trail Color</label><input id="trailColor" type="color" defaultValue="#8280ff" /><span id="trailColorVal">#8280ff</span></div>
+            </details>
+            <details className="group" open>
+              <summary>Background</summary>
+              <div className="row"><label>Inner</label><input id="bg1" type="color" defaultValue="#ffffff" /><span id="bg1Val">#ffffff</span></div>
+              <div className="row"><label>Outer</label><input id="bg2" type="color" defaultValue="#d3d0f0" /><span id="bg2Val">#d3d0f0</span></div>
+              <div className="row"><label>Vignette Color</label><input id="vigColor" type="color" defaultValue="#a0beda" /><span id="vigColorVal">#a0beda</span></div>
+              <div className="row"><label>Vignette Strength</label><input id="vigStrength" type="range" min="0" max="100" defaultValue="10" /><span id="vigStrengthVal">0.10</span></div>
+              <div className="row"><small>Particles are jittered-grid seeded, locally orbit, fade in/out and respawn for even coverage.</small></div>
+            </details>
+          </div>
+        )}
+
+        <div className="viewport" id="vp">
+          <canvas id="layer-neon" />
+          <canvas id="layer-edges" />
+          <canvas id="layer-vignette" />
+          <div id="agents" aria-hidden="false" />
+        </div>
+
+        <div id="panel" className="panel" role="dialog" aria-modal="true" aria-hidden="true">
+          <div className="hd">
+            <div style={{ fontWeight: 700, color: '#e9f3ff' }}>Conversation</div>
+            <button id="closePanel" className={styles.btn} type="button">Close</button>
+          </div>
+          <div id="panelBody" className="body" />
+        </div>
+
+        <div className={styles.cta}><button id="continueBtn" className={styles.btn} disabled>Continue</button></div>
+      </div>
+    </div>
+  );
+}
+

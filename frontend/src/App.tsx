@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useState } from 'react';
 import Screen1 from './pages/Screen1/Screen1';
 import Screen2 from './pages/Screen2/Screen2';
+import Screen3 from './pages/Screen3/Screen3';
 import Team from './pages/Team';
 import Discussion from './pages/Discussion';
 import Insights from './pages/Insights';
@@ -9,7 +10,7 @@ import Scenarios from './pages/Scenarios';
 
 export default function App() {
   // TEMPORARY DEBUG NAV — remove later
-  const [debugScreen, setDebugScreen] = useState<null | 'screen1' | 'screen2'>(null);
+  const [debugScreen, setDebugScreen] = useState<null | 'screen1' | 'screen2' | 'screen3'>(null);
 
   const debugNav = (
     <div
@@ -33,6 +34,12 @@ export default function App() {
       >
         Screen_2
       </button>
+      <button
+        onClick={() => setDebugScreen('screen3')}
+        style={{ background: 'none', border: 'none', color: '#333', textAlign: 'left', cursor: 'pointer', padding: 0 }}
+      >
+        Screen_3
+      </button>
     </div>
   );
 
@@ -50,6 +57,14 @@ export default function App() {
       <>
         {debugNav}
         <Screen2 />
+      </>
+    );
+  }
+  if (debugScreen === 'screen3') {
+    return (
+      <>
+        {debugNav}
+        <Screen3 />
       </>
     );
   }

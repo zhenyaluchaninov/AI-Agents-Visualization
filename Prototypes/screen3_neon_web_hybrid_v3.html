@@ -1,0 +1,689 @@
+html = r"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Screen3 — Neon Web Hybrid (Agents + Chats) — v6</title>
+  <style>
+    :root{
+      --bg:#060e17; --panel:rgba(10,20,35,.55); --text:#d9ebff; --border:rgba(120,180,255,.25);
+      --accent:#59f2ff; --vp-bg:#0a121e;
+    }
+    html,body{height:100%; margin:0; background:var(--bg); color:var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial;}
+    .title{ text-align:center; margin:16px auto 2px; font-size:24px; color:#e9f3ff}
+    .subtitle{ text-align:center; margin:0 auto 10px; font-size:13px; color:#b9d7ff}
+
+    /* Controls panel — moved further left, 20% narrower */
+    #controls{
+      position:absolute; left:12px; top:88px; width:288px;
+      backdrop-filter: blur(8px); background: var(--panel); color: var(--text);
+      border: 1px solid var(--border); border-radius: 12px; padding: 10px 8px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.35);
+    }
+    #controls h2{ margin:0 0 8px; font-size: 14px; letter-spacing:.4px; font-weight: 600; color: #a7ceff;}
+    #controls .group{ border-top:1px solid rgba(255,255,255,.08); margin:10px 0 0; padding-top:10px; }
+    #controls .row{ display:flex; align-items:center; gap:8px; margin: 8px 0; }
+    #controls label{ font-size:12px; min-width: 148px; opacity:.9; }
+    #controls input[type="range"]{ width:100%; }
+    #controls input[type="color"]{ width: 42px; height: 22px; border:none; background:transparent; }
+    .button{ cursor:pointer; user-select:none; font-size:12px; color:#001427; background:#a7ceff; border-radius:8px; padding:6px 8px; border: none; }
+
+    /* collapsible groups */
+    #controls details.group{ border-top:1px solid rgba(255,255,255,.08); margin:10px 0 0; padding-top:6px; }
+    #controls details.group > summary{ list-style:none; cursor:pointer; color:#a7ceff; font-weight:600; font-size:13px; margin:0 0 6px; }
+    #controls details.group > summary::-webkit-details-marker{ display:none; }
+    #controls small{ font-size:11px; opacity:.7 }
+
+    /* Centered rectangular simulation viewport */
+    .viewport{
+      position: relative;
+      width: clamp(880px, 62vw, 1280px);
+      aspect-ratio: 16 / 9;
+      max-height: 74vh;
+      margin: 40px auto;
+      background: var(--vp-bg);
+      border-radius: 22px;
+      box-shadow: 0 30px 120px rgba(0,0,0,.55);
+      overflow: hidden;
+    }
+    #layer-neon,#layer-edges,#layer-vignette{ position:absolute; inset:0; display:block; }
+    #agents{ position:absolute; inset:0; pointer-events:none; }
+
+    /* Agent chips */
+    .agent{ position:absolute; translate:-50% -50%; min-width:56px; height:40px; padding:0 10px;
+      border-radius:12px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15);
+      backdrop-filter: blur(8px); box-shadow: 0 8px 30px rgba(0,0,0,.35);
+      display:flex; align-items:center; justify-content:center; pointer-events:auto; }
+    .agent .label{ font-size:12px; color:#fff; white-space:nowrap; text-shadow: 0 1px 1px rgba(0,0,0,.35); }
+    .chatpin{ position:absolute; translate:-50% -100%; pointer-events:auto; width:28px; height:28px; border-radius: 999px;
+      display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25);
+      backdrop-filter: blur(6px); box-shadow: 0 8px 20px rgba(0,0,0,.35); font-size: 14px; }
+    .chatpin:hover{ background: rgba(255,255,255,.2); }
+
+    .panel{ position: fixed; top:0; right:0; height:100%; width:min(420px,100vw); background: rgba(8,14,24,.95);
+      backdrop-filter: blur(10px); border-left:1px solid rgba(255,255,255,.12); box-shadow: -12px 0 50px rgba(0,0,0,.45);
+      transform: translateX(100%); transition: transform .38s cubic-bezier(.22,.61,.36,1); display:flex; flex-direction:column; }
+    .panel.open{ transform: translateX(0); }
+    .panel .hd{ padding:14px 14px; border-bottom:1px solid rgba(255,255,255,.1); display:flex; align-items:center; justify-content:space-between; }
+    .panel .body{ padding:14px; overflow:auto; display:flex; flex-direction:column; gap:10px; }
+
+    .msg{ display:flex; gap:10px; }
+    .msg .av{ width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:#001427; background:#a7ceff; }
+    .msg .bubble{ background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:8px 10px; font-size:13px; line-height:1.35; color:#e8f1ff; }
+
+    .cta{ width: min(1280px, 96vw); margin: 6px auto 20px; text-align:center; }
+    .cta button{ padding:12px 18px; border-radius:16px; background:#fff; color:#0a0f1a; font-weight:700; border:1px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,.45); transform: translateY(6px); opacity:0; transition: all .35s ease; }
+    .cta button.enabled{ transform: translateY(0); opacity:1; cursor:pointer; }
+    .badge{ width:min(1280px,96vw); margin:6px auto 0; color:#6aa5ff; opacity:.75; font-size:12px; text-align:right; }
+  </style>
+</head>
+<body>
+  <div class="title">Agents are discussing</div>
+  <div class="subtitle">Tap a chat icon to peek inside.</div>
+
+  <!-- Controls -->
+  <div class="ui" id="controls">
+    <h2>Neon Web</h2>
+    <details class="group" open>
+      <summary>Particles & Links</summary>
+      <!-- Distribution -->
+      <div class="row"><label>Nodes</label><input id="nodes" type="range" min="1" max="170" value="120"><span id="nodesVal">120</span></div>
+      <div class="row"><label>Inner Hole Radius (px)</label><input id="holeR" type="range" min="0" max="400" value="0"><span id="holeRVal">0</span></div>
+      <div class="row"><label>Spacing Min (px)</label><input id="spacingMin" type="range" min="4" max="200" value="30"><span id="spacingMinVal">30</span></div>
+      <div class="row"><label>Spacing Max (px)</label><input id="spacingMax" type="range" min="8" max="260" value="90"><span id="spacingMaxVal">90</span></div>
+      <!-- Behaviour -->
+      <div class="row"><label>Particle Speed</label><input id="pspeed" type="range" min="0" max="100" value="32"><span id="pspeedVal">0.32</span></div>
+      <div class="row"><label>Particle Size</label><input id="psize" type="range" min="0" max="3" step="0.1" value="1"><span id="psizeVal">1.0</span></div>
+      <div class="row"><label>Mean Lifespan (s)</label><input id="life" type="range" min="1" max="12" value="6"><span id="lifeVal">6</span></div>
+      <div class="row"><label>Static Particles</label><input id="lifeless" type="checkbox"><span></span></div>
+      <!-- Attraction -->
+      <div class="row"><label>Strength</label><input id="attr" type="range" min="0" max="30" step="1" value="6"><span id="attrVal">0.06</span></div>
+      <div class="row"><label>Radius (px)</label><input id="attrR" type="range" min="40" max="400" value="140"><span id="attrRVal">140</span></div>
+      <!-- Links -->
+      <div class="row"><label>Link Distance</label><input id="link" type="range" min="40" max="300" value="140"><span id="linkVal">140</span></div>
+      <div class="row"><label>Particle Link Thickness</label><input id="thickP" type="range" min="1" max="6" value="2"><span id="thickPVal">2</span></div>
+      <div class="row"><label>Particle Links Opaque At (%)</label><input id="plinkOpaqueAt" type="range" min="20" max="100" value="60"><span id="plinkOpaqueAtVal">60%</span></div>
+      <!-- Appearance -->
+      <div class="row"><label>Accent (particles)</label><input id="color" type="color" value="#59f2ff"><button id="rand" class="button">Randomize</button></div>
+      <div class="row"><label>Blur (px)</label><input id="blur" type="range" min="0" max="8" value="0"><span id="blurVal">0</span></div>
+    </details>
+
+    <details class="group" open>
+      <summary>Agents</summary>
+      <div class="row"><label>Link Color</label><input id="linkColor" type="color" value="#59ffc3"><span id="linkColorVal">#59ffc3</span></div>
+      <div class="row"><label>Agent Link Thickness</label><input id="thickA" type="range" min="1" max="8" value="2"><span id="thickAVal">2</span></div>
+      <div class="row"><label>Agent Links Glow</label><input id="glowLinks" type="range" min="0" max="40" value="20"><span id="glowLinksVal">20</span></div>
+      <div class="row"><label>Trail Size (px)</label><input id="trailSize" type="range" min="1" max="10" value="3"><span id="trailSizeVal">3</span></div>
+      <div class="row"><label>Trail Color</label><input id="trailColor" type="color" value="#ffffff"><span id="trailColorVal">#ffffff</span></div>
+    </details>
+
+    <details class="group" open>
+      <summary>Background</summary>
+      <div class="row"><label>Inner</label><input id="bg1" type="color" value="#12283c"><span id="bg1Val">#12283c</span></div>
+      <div class="row"><label>Outer</label><input id="bg2" type="color" value="#060e17"><span id="bg2Val">#060e17</span></div>
+      <div class="row"><label>Vignette Color</label><input id="vigColor" type="color" value="#000000"><span id="vigColorVal">#000000</span></div>
+      <div class="row"><label>Vignette Strength</label><input id="vigStrength" type="range" min="0" max="100" value="30"><span id="vigStrengthVal">0.30</span></div>
+      <div class="row"><small>Particles are jittered-grid seeded, locally orbit, fade in/out and respawn for even coverage.</small></div>
+    </details>
+  </div>
+
+  <!-- Centered rectangular simulation viewport -->
+  <div class="viewport" id="vp">
+    <canvas id="layer-neon"></canvas>
+    <canvas id="layer-edges"></canvas>
+    <canvas id="layer-vignette"></canvas>
+    <div id="agents" aria-hidden="false"></div>
+  </div>
+
+  <div class="badge">Neon Web Hybrid · Screen3 · v6</div>
+
+  <!-- Chat panel -->
+  <div id="panel" class="panel" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="hd">
+      <div style="font-weight:700;color:#e9f3ff">Conversation</div>
+      <button id="closePanel" class="button">Close</button>
+    </div>
+    <div id="panelBody" class="body"></div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta"><button id="continueBtn" disabled>Continue</button></div>
+
+<script>
+(()=>{
+  const DPR = Math.max(1, Math.min(2, window.devicePixelRatio||1));
+  const vp = document.getElementById('vp');
+  const neon = document.getElementById('layer-neon');
+  const edgesCanvas = document.getElementById('layer-edges');
+  const vigCanvas = document.getElementById('layer-vignette');
+  const nctx = neon.getContext('2d'), ectx = edgesCanvas.getContext('2d'), vctx = vigCanvas.getContext('2d');
+  let W=0,H=0,lastT=performance.now(), panelOpen=false;
+
+  function resize(){
+    const r = vp.getBoundingClientRect();
+    W = neon.width = Math.floor(r.width * DPR);
+    H = neon.height = Math.floor(r.height * DPR);
+    edgesCanvas.width = W; edgesCanvas.height = H;
+    vigCanvas.width = W; vigCanvas.height = H;
+    [neon,edgesCanvas,vigCanvas].forEach(c=>{ c.style.width = r.width + 'px'; c.style.height = r.height + 'px'; });
+    buildAnchors();
+    buildAgentNodes();
+    reseedParticles(params.MAX);
+    placeAgents();
+  }
+  window.addEventListener('resize', resize);
+
+  // Controls
+  const $ = (id)=>document.getElementById(id);
+  const ui = {
+    nodes: $('nodes'), link: $('link'), pspeed: $('pspeed'),
+    psize: $('psize'), lifeless: $('lifeless'),
+    thickP: $('thickP'), thickA: $('thickA'),
+    plinkOpaqueAt: $('plinkOpaqueAt'),
+    glowLinks: $('glowLinks'),
+    color: $('color'), linkColor: $('linkColor'),
+    trailSize: $('trailSize'), trailColor: $('trailColor'),
+    life: $('life'), spacingMin: $('spacingMin'), spacingMax: $('spacingMax'),
+    blur: $('blur'), holeR: $('holeR'),
+    nodesVal: $('nodesVal'), linkVal: $('linkVal'), pspeedVal: $('pspeedVal'),
+    psizeVal: $('psizeVal'),
+    thickPVal: $('thickPVal'), thickAVal: $('thickAVal'),
+    plinkOpaqueAtVal: $('plinkOpaqueAtVal'),
+    glowLinksVal: $('glowLinksVal'),
+    lifeVal: $('lifeVal'), spacingMinVal: $('spacingMinVal'), spacingMaxVal: $('spacingMaxVal'),
+    blurVal: $('blurVal'), holeRVal: $('holeRVal'),
+    trailSizeVal: $('trailSizeVal'), trailColorVal: $('trailColorVal'),
+    rand: $('rand'),
+    bg1: $('bg1'), bg2: $('bg2'), bg1Val: $('bg1Val'), bg2Val: $('bg2Val'),
+    vigColor: $('vigColor'), vigStrength: $('vigStrength'), vigColorVal: $('vigColorVal'), vigStrengthVal: $('vigStrengthVal'),
+    attr: $('attr'), attrVal: $('attrVal'), attrR: $('attrR'), attrRVal: $('attrRVal'),
+    linkColorVal: $('linkColorVal')
+  };
+  const params = {
+    MAX: parseInt(ui.nodes.value,10),
+    LINK_DIST: parseInt(ui.link.value,10),
+    P_SPEED: parseInt(ui.pspeed.value,10)/100,
+    P_SIZE: parseFloat(ui.psize.value),
+    THICK_P: parseInt(ui.thickP.value,10),
+    THICK_A: parseInt(ui.thickA.value,10),
+    P_LINK_OPQ_FRAC: parseInt(ui.plinkOpaqueAt.value,10)/100,
+    GLOW_LINKS: parseInt(ui.glowLinks.value,10),
+    COLOR: ui.color.value,
+    LINK_COLOR: ui.linkColor.value,
+    LINK_ORB_SIZE: parseInt(ui.trailSize.value,10),
+    LINK_ORB_COLOR: ui.trailColor.value,
+    BG1: ui.bg1.value, BG2: ui.bg2.value,
+    VIG_COLOR: ui.vigColor.value, VIG_STRENGTH: parseInt(ui.vigStrength.value,10)/100,
+    ATTR: parseInt(ui.attr.value,10)/100, // 0..0.3 now (max slider=30)
+    ATTR_R: parseInt(ui.attrR.value,10),  // px
+    MEAN_LIFE: parseInt(ui.life.value,10), // seconds
+    SPACING_MIN: parseInt(ui.spacingMin.value,10),
+    SPACING_MAX: parseInt(ui.spacingMax.value,10),
+    BLUR: parseInt(ui.blur.value,10),
+    LIFELESS: !!ui.lifeless.checked,
+    HOLE_R: parseInt(ui.holeR.value,10)
+  };
+  function sync(){
+    ui.nodesVal.textContent=params.MAX; ui.linkVal.textContent=params.LINK_DIST; ui.pspeedVal.textContent=params.P_SPEED.toFixed(2);
+    ui.psizeVal.textContent=params.P_SIZE.toFixed(1);
+    ui.thickPVal.textContent=params.THICK_P; ui.thickAVal.textContent=params.THICK_A; ui.glowLinksVal.textContent=params.GLOW_LINKS;
+    ui.plinkOpaqueAtVal.textContent=Math.round(params.P_LINK_OPQ_FRAC*100)+'%';
+    ui.bg1Val.textContent=params.BG1; ui.bg2Val.textContent=params.BG2; ui.linkColorVal.textContent=params.LINK_COLOR;
+    ui.vigColorVal.textContent=params.VIG_COLOR; ui.vigStrengthVal.textContent=params.VIG_STRENGTH.toFixed(2);
+    ui.attrVal.textContent=params.ATTR.toFixed(3); ui.attrRVal.textContent=params.ATTR_R;
+    ui.lifeVal.textContent=params.MEAN_LIFE; ui.spacingMinVal.textContent=params.SPACING_MIN; ui.spacingMaxVal.textContent=params.SPACING_MAX;
+    ui.blurVal.textContent=params.BLUR; ui.trailSizeVal.textContent=params.LINK_ORB_SIZE; ui.trailColorVal.textContent=params.LINK_ORB_COLOR; ui.holeRVal.textContent=params.HOLE_R;
+  }
+  [ui.link,ui.pspeed,ui.psize,ui.thickP,ui.thickA,ui.plinkOpaqueAt,ui.glowLinks,ui.attr,ui.attrR,ui.life,ui.blur,ui.trailSize,ui.holeR].forEach(inp=>inp.addEventListener('input',()=>{
+    params.LINK_DIST=parseInt(ui.link.value,10);
+    params.P_SPEED=parseInt(ui.pspeed.value,10)/100;
+    params.P_SIZE=parseFloat(ui.psize.value);
+    params.THICK_P=parseInt(ui.thickP.value,10);
+    params.THICK_A=parseInt(ui.thickA.value,10);
+    params.P_LINK_OPQ_FRAC=parseInt(ui.plinkOpaqueAt.value,10)/100;
+    params.GLOW_LINKS=parseInt(ui.glowLinks.value,10);
+    params.ATTR=parseInt(ui.attr.value,10)/100; // 0..0.3
+    params.ATTR_R=parseInt(ui.attrR.value,10);
+    params.MEAN_LIFE=parseInt(ui.life.value,10);
+    params.BLUR=parseInt(ui.blur.value,10);
+    params.LINK_ORB_SIZE=parseInt(ui.trailSize.value,10);
+    params.HOLE_R=parseInt(ui.holeR.value,10);
+    sync();
+  }));
+  ui.spacingMin.addEventListener('input',()=>{ params.SPACING_MIN=parseInt(ui.spacingMin.value,10); randomizeNodeSpacings(); sync(); });
+  ui.spacingMax.addEventListener('input',()=>{ params.SPACING_MAX=parseInt(ui.spacingMax.value,10); randomizeNodeSpacings(); sync(); });
+  ui.holeR.addEventListener('change',()=>{ reseedParticles(params.MAX); });
+  ui.lifeless.addEventListener('change',()=>{ params.LIFELESS=!!ui.lifeless.checked; });
+  ui.nodes.addEventListener('input',()=>{ params.MAX=parseInt(ui.nodes.value,10); sync(); reseedParticles(params.MAX); });
+  ui.color.addEventListener('input',()=>{ params.COLOR=ui.color.value; });
+  ui.linkColor.addEventListener('input',()=>{ params.LINK_COLOR=ui.linkColor.value; ui.linkColorVal.textContent=params.LINK_COLOR; });
+  ui.trailColor.addEventListener('input',()=>{ params.LINK_ORB_COLOR=ui.trailColor.value; ui.trailColorVal.textContent=params.LINK_ORB_COLOR; });
+  ui.rand.addEventListener('click',()=>{ const h=Math.floor(Math.random()*360); params.COLOR=`hsl(${h} 100% 70%)`; ui.color.value = rgbToHex(hslToRgb(h/360,1,.7)); });
+  ui.bg1.addEventListener('input',()=>{ params.BG1=ui.bg1.value; ui.bg1Val.textContent=params.BG1; });
+  ui.bg2.addEventListener('input',()=>{ params.BG2=ui.bg2.value; ui.bg2Val.textContent=params.BG2; });
+  ui.vigColor.addEventListener('input',()=>{ params.VIG_COLOR=ui.vigColor.value; ui.vigColorVal.textContent=params.VIG_COLOR; });
+  ui.vigStrength.addEventListener('input',()=>{ params.VIG_STRENGTH=parseInt(ui.vigStrength.value,10)/100; ui.vigStrengthVal.textContent=params.VIG_STRENGTH.toFixed(2); });
+  sync();
+
+  // Mouse (ATTRACTION with radius)
+  const mouse={x:null,y:null};
+  vp.addEventListener('mousemove',e=>{const r=vp.getBoundingClientRect(); mouse.x=(e.clientX-r.left)*DPR; mouse.y=(e.clientY-r.top)*DPR;});
+  vp.addEventListener('mouseleave',()=>{mouse.x=mouse.y=null;});
+
+  // Agents static
+  const AGENTS=[
+    {id:'A1',name:'Research'},{id:'A2',name:'Strategy'},{id:'A3',name:'Design'},
+    {id:'A4',name:'Product'},{id:'A5',name:'Engineer'},{id:'A6',name:'Ops'}
+  ];
+  const anchors=[];
+  function buildAnchors(){
+    anchors.length=0;
+    const cx=W/2, cy=H/2, baseR=Math.min(W,H)*0.24;
+    for(let i=0;i<AGENTS.length;i++){
+      const angle=-Math.PI/2 + i*(Math.PI*2/AGENTS.length);
+      anchors.push({x: cx + Math.cos(angle)*baseR, y: cy + Math.sin(angle)*baseR, angle});
+    }
+  }
+  const agentsLayer=$('agents'); const agentEls=new Map(), chatPins=new Map();
+  function mountAgents(){
+    agentsLayer.innerHTML=''; agentEls.clear(); chatPins.clear();
+    AGENTS.forEach(a=>{
+      const el=document.createElement('div'); el.className='agent'; el.innerHTML='<div class="label"></div>';
+      el.querySelector('.label').textContent=a.name; agentsLayer.appendChild(el); agentEls.set(a.id,el);
+      const pin=document.createElement('button'); pin.className='chatpin'; pin.textContent='💬';
+      pin.addEventListener('click',()=>openChatForAgent(a.id)); agentsLayer.appendChild(pin); chatPins.set(a.id,pin);
+    });
+  }
+  function placeAgents(){
+    for(let i=0;i<AGENTS.length;i++){
+      const el=agentEls.get(AGENTS[i].id); const pin=chatPins.get(AGENTS[i].id); const p=anchors[i]; if(!el||!pin||!p) continue;
+      const x=p.x/DPR, y=p.y/DPR; el.style.left=x+'px'; el.style.top=y+'px'; pin.style.left=x+'px'; pin.style.top=(y-30)+'px';
+    }
+  }
+
+  // Attach a "static" node to each agent
+  let agentNodes=[];
+  function buildAgentNodes(){ agentNodes = AGENTS.map((a,i)=>({ id:a.id, x: anchors[i]?.x||0, y: anchors[i]?.y||0 })); }
+  function updateAgentNodes(){ for(let i=0;i<agentNodes.length;i++){ agentNodes[i].x=anchors[i].x; agentNodes[i].y=anchors[i].y; } }
+
+  // Agent edges
+  const edges=[['A1','A3'],['A1','A4'],['A2','A5'],['A2','A6'],['A3','A5'],['A4','A6'],['A5','A6']]
+    .map((e,i)=>({id:'E'+(i+1),from:e[0],to:e[1]}));
+  let activeEdgeId=null, activeEdgeSince=0;
+
+  // Chat panel
+  const panel=$('panel'), panelBody=$('panelBody'), closePanel=$('closePanel');
+  const continueBtn=$('continueBtn'); let unlockedCTA=false;
+  closePanel.addEventListener('click',()=>{ panel.classList.remove('open'); panel.setAttribute('aria-hidden','true'); activeEdgeId=null; panelOpen=false; });
+  function initials(label){return label.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+  function openChat(edge){
+    if(!unlockedCTA){ unlockedCTA=true; continueBtn.classList.add('enabled'); continueBtn.disabled=false; }
+    panelBody.innerHTML='';
+    const msgs=[
+      { who: edge.from.name, text: "Sharing latest findings. Passing key insights to you now." },
+      { who: edge.to.name, text: "Received. Translating into actionable strategy options." },
+      { who: edge.from.name, text: "Prioritize the cost-sensitive segment; signal is strong." },
+      { who: edge.to.name, text: "Copy. Drafting two scenarios; will loop in Engineering next." },
+    ];
+    msgs.forEach(m=>{ const row=document.createElement('div'); row.className='msg';
+      const av=document.createElement('div'); av.className='av'; av.textContent=initials(m.who);
+      const bubble=document.createElement('div'); bubble.className='bubble'; bubble.textContent=m.text;
+      row.appendChild(av); row.appendChild(bubble); panelBody.appendChild(row); });
+    panel.classList.add('open'); panel.setAttribute('aria-hidden','false'); panelOpen=true;
+  }
+  function currentAgentMap(){ const m=new Map(); for(let i=0;i<AGENTS.length;i++){ const p=anchors[i]; m.set(AGENTS[i].id,{x:p.x,y:p.y,name:AGENTS[i].name}); } return m; }
+  function openChatForAgent(agentId){
+    const e=edges.find(E=>E.from===agentId||E.to===agentId); if(!e) return;
+    const amap=currentAgentMap(); const edge={id:e.id, from:amap.get(e.from), to:amap.get(e.to)};
+    activeEdgeId=e.id; activeEdgeSince=performance.now(); openChat(edge);
+  }
+
+  // PARTICLES — orbit around spawn center + lifespan + cursor attraction + spacing
+  class Node{
+    constructor(cx,cy){ this.reset(true, {x:cx, y:cy}); this.cx=cx; this.cy=cy; this.ft=0; this.f1=Math.random()*Math.PI*2; this.f2=Math.random()*Math.PI*2; this.cvx=0; this.cvy=0; this.ox=0; this.oy=0; }
+    reset(initial=false,pos=null){
+      const start = pos || {x:Math.random()*W, y:Math.random()*H};
+      this.x = start.x; this.y = start.y;
+      const a=Math.random()*Math.PI*2; const speed = (Math.random()*0.7+0.3) * params.P_SPEED * 2.0 * DPR;
+      this.vx = Math.cos(a)*speed; this.vy = Math.sin(a)*speed;
+      this.r = (Math.random()*1.6+0.5)*DPR; // base radius; scaled at draw by params.P_SIZE
+      this.pulse = Math.random();
+      this.life = (params.MEAN_LIFE * (0.6 + Math.random()*0.8)); // seconds
+      this.age = 0;
+      if(this.cx===undefined){ this.cx = this.x; this.cy = this.y; }
+      this.cvx = 0; this.cvy = 0; this.ox=0; this.oy=0;
+      const minS = Math.min(params.SPACING_MIN, params.SPACING_MAX);
+      const maxS = Math.max(params.SPACING_MIN, params.SPACING_MAX);
+      this.sep = minS + Math.random() * Math.max(0, maxS - minS);
+    }
+    step(dt){
+      // spring back to center (keeps them local)
+      const spring = 0.07;
+      const dxc = this.cx - this.x, dyc = this.cy - this.y;
+      this.vx += dxc * spring * dt;
+      this.vy += dyc * spring * dt;
+
+      // attraction to cursor (limited radius & tame strength)
+      if(mouse.x!==null){
+        const dx = mouse.x - this.x, dy = mouse.y - this.y;
+        const dist = Math.hypot(dx,dy) + 1e-3;
+        const R = params.ATTR_R * DPR;
+        if(dist < R){
+          const falloff = (1 - dist/R); // 0..1
+          const force = params.ATTR * 28 * falloff; // moderate scale
+          this.vx += (dx/dist) * force * dt;
+          this.vy += (dy/dist) * force * dt;
+        }
+      }
+
+      // gentle curl / float (lighter in static mode)
+      const curl = 0.22 * (params.LIFELESS ? 0.6 : 1.0);
+      const ox = -this.vy, oy = this.vx;
+      this.vx += ox * curl * 0.02 * dt;
+      this.vy += oy * curl * 0.02 * dt;
+
+      // damping
+      const damp = 0.985;
+      this.vx *= Math.pow(damp, dt*60);
+      this.vy *= Math.pow(damp, dt*60);
+
+      this.x += this.vx * dt * 60;
+      this.y += this.vy * dt * 60;
+
+      this.pulse += 0.02 * dt * 60;
+      this.age += dt;
+
+      if(this.age > this.life && !params.LIFELESS){ this.respawn(); }
+    }
+    renderPos(dt){
+      return {x:this.x, y:this.y};
+    }
+    respawn(){
+      const pos = randomCellPosition();
+      this.cx = pos.x; this.cy = pos.y;
+      this.reset(true, pos);
+    }
+    fadeAlpha(){
+      const tIn = Math.min(1, this.age / 0.35);
+      if(params.LIFELESS){ return tIn; }
+      const tOut = Math.min(1, Math.max(0, (this.life - this.age) / 0.45));
+      return tIn * tOut;
+    }
+    draw(ctx, dt){
+      const tw=0.6+Math.sin(this.pulse)*0.35;
+      const a = this.fadeAlpha();
+      if(a<=0) return;
+      ctx.globalAlpha = 0.55 * a;
+      const rr = this.r * params.P_SIZE;
+      const p = this.renderPos(dt);
+      ctx.beginPath(); ctx.arc(p.x,p.y,rr*tw,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+  let nodes=[];
+  let gridCols=0, gridRows=0, cellW=0, cellH=0;
+  function computeGrid(n){
+    gridCols = Math.max(4, Math.floor(Math.sqrt(n)));
+    gridRows = Math.max(4, Math.round(n / gridCols));
+    cellW = W / gridCols; cellH = H / gridRows;
+  }
+  function acceptPos(px,py){
+    const R0 = (params.HOLE_R||0) * DPR;
+    if(R0<=0) return true;
+    const dx = px - W/2, dy = py - H/2;
+    const r = Math.hypot(dx,dy);
+    const fade = 60 * DPR; // soft edge width
+    const Rf = R0 + fade;
+    if(r <= R0) return false;
+    if(r >= Rf) return true;
+    const p = (r - R0) / (Rf - R0); // 0..1
+    return Math.random() < p;
+  }
+  function randomCellPosition(){
+    let tries=0;
+    while(true){
+      const c = Math.floor(Math.random()*gridCols);
+      const r = Math.floor(Math.random()*gridRows);
+      const px = (c + Math.random()) * cellW;
+      const py = (r + Math.random()) * cellH;
+      if(acceptPos(px,py)) return {x:px, y:py};
+      tries++;
+      if(tries>8){
+        // fallback: sample a ring outside the fade radius
+        const R0 = (params.HOLE_R||0) * DPR;
+        const fade = 60 * DPR;
+        const base = R0 + fade + 10*DPR;
+        const rr = base + Math.random()*Math.max(W,H)*0.3;
+        const ang = Math.random()*Math.PI*2;
+        const px2 = W/2 + Math.cos(ang)*rr;
+        const py2 = H/2 + Math.sin(ang)*rr;
+        return {x:px2,y:py2};
+      }
+    }
+  }
+  function reseedParticles(nCount){
+    nodes.length=0;
+    const n=Math.max(1, nCount|0);
+    computeGrid(n);
+    let added=0;
+    for(let r=0;r<gridRows;r++){
+      for(let c=0;c<gridCols;c++){
+        if(added>=n) break;
+        const px = (c + Math.random()) * cellW;
+        const py = (r + Math.random()) * cellH;
+        let pos = {x:px,y:py};
+        if(!acceptPos(pos.x,pos.y)) pos = randomCellPosition();
+        nodes.push(new Node(pos.x,pos.y));
+        added++;
+      }
+    }
+    while(nodes.length<n){ const p=randomCellPosition(); nodes.push(new Node(p.x,p.y)); }
+  }
+
+  function randomizeNodeSpacings(){
+    const minS = Math.min(params.SPACING_MIN, params.SPACING_MAX);
+    const maxS = Math.max(params.SPACING_MIN, params.SPACING_MAX);
+    for(let i=0;i<nodes.length;i++){
+      nodes[i].sep = minS + Math.random() * Math.max(0, maxS - minS);
+    }
+  }
+
+  // DRAW
+  function drawBackground(){
+    nctx.clearRect(0,0,W,H);
+    const g=nctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*0.7);
+    g.addColorStop(0, hexToRgba(params.BG1, 1.0));
+    g.addColorStop(1, hexToRgba(params.BG2, 1.0));
+    nctx.fillStyle=g; nctx.fillRect(0,0,W,H);
+  }
+  function drawVignette(){
+    vctx.clearRect(0,0,W,H);
+    if(params.VIG_STRENGTH<=0) return;
+    const g=vctx.createRadialGradient(W/2,H/2, Math.min(W,H)*0.2, W/2,H/2, Math.max(W,H)*0.7);
+    const rgba = hexToRgb(params.VIG_COLOR);
+    vctx.globalCompositeOperation='source-over';
+    g.addColorStop(0, `rgba(${rgba.r},${rgba.g},${rgba.b},0)`);
+    g.addColorStop(1, `rgba(${rgba.r},${rgba.g},${rgba.b},${params.VIG_STRENGTH})`);
+    vctx.fillStyle=g; vctx.fillRect(0,0,W,H);
+  }
+
+  function spacingForces(){
+    // lightweight separation within per-node preferred spacing
+    const k = 12; // strength
+    for(let i=0;i<nodes.length;i++){
+      const a=nodes[i];
+      for(let j=i+1;j<nodes.length;j++){
+        const b=nodes[j];
+        const dx=a.x-b.x, dy=a.y-b.y, d2=dx*dx+dy*dy;
+        const S = Math.max(4, ((a.sep||params.SPACING_MIN)+(b.sep||params.SPACING_MIN))*0.5) * DPR;
+        const S2 = S*S;
+        if(d2 < S2 && d2>1){
+          const d = Math.sqrt(d2);
+          const push = (1 - d/S) * (k / d);
+          const fx = dx * push, fy = dy * push;
+          a.vx += fx * 0.001;
+          a.vy += fy * 0.001;
+          // mirror a bit to keep symmetry modest
+          b.vx -= fx * 0.001;
+          b.vy -= fy * 0.001;
+        }
+      }
+    }
+  }
+
+  function tick(){
+    const now = performance.now();
+    const dt = Math.min(0.033, (now - lastT)/1000);
+    lastT = now;
+
+    drawBackground();
+
+    // spacing pass
+    spacingForces();
+
+    // particles
+    nctx.save();
+    // Choose composite to allow visible black colors
+    nctx.globalCompositeOperation = isColorBlackish(params.COLOR) ? 'source-over' : 'lighter';
+    nctx.shadowBlur = 0;
+    nctx.shadowColor = 'transparent';
+    nctx.fillStyle = colorWithAlpha(params.COLOR, 1.0);
+    // Optional unified blur for particles and their links
+    const filterStr = params.BLUR>0 ? `blur(${params.BLUR}px)` : 'none';
+    nctx.filter = filterStr;
+    nodes.forEach(n=>{ n.step(dt); n.draw(nctx, dt); });
+
+    // particle-particle links
+    const L=params.LINK_DIST*DPR, L2=L*L;
+    nctx.lineWidth=params.THICK_P*DPR*0.35;
+    nctx.strokeStyle=colorWithAlpha(params.COLOR, 1.0);
+    for(let i=0;i<nodes.length;i++){
+      const a=nodes[i];
+      const ap=a.renderPos(dt);
+      const af=a.fadeAlpha(); if(af<=0) continue;
+      for(let j=i+1;j<nodes.length;j++){
+        const b=nodes[j];
+        const bp=b.renderPos(dt);
+        const bf=b.fadeAlpha(); if(bf<=0) continue;
+        const dx=ap.x-bp.x, dy=ap.y-bp.y, d2=dx*dx+dy*dy;
+        if(d2<L2){
+          const d = Math.sqrt(d2);
+          const opaqueAt = Math.max(1, L * params.P_LINK_OPQ_FRAC);
+          const t = Math.max(0, Math.min(1, 1 - (d / opaqueAt)));
+          // alpha ramps up to 1 as distance approaches 0, scaled by fade of endpoints
+          const base = t; // 0..1
+          const alpha = Math.max(0, Math.min(1, base * af * bf));
+          if(alpha>0.001){
+            nctx.globalAlpha=alpha;
+            nctx.beginPath(); nctx.moveTo(ap.x,ap.y); nctx.lineTo(bp.x,bp.y); nctx.stroke();
+          }
+        }
+      }
+    }
+
+    // particle-agent links
+    nctx.globalAlpha=0.9;
+    for(let i=0;i<nodes.length;i++){
+      const a=nodes[i];
+      const ap=a.renderPos(dt);
+      const af=a.fadeAlpha(); if(af<=0) continue;
+      for(let j=0;j<agentNodes.length;j++){
+        const b=agentNodes[j];
+        const dx=ap.x-b.x, dy=ap.y-b.y, d2=dx*dx+dy*dy;
+        if(d2 < L2){
+          const d = Math.sqrt(d2);
+          const opaqueAt = Math.max(1, L * params.P_LINK_OPQ_FRAC);
+          const t = Math.max(0, Math.min(1, 1 - (d / opaqueAt)));
+          const base = t; // 0..1
+          const alpha = Math.max(0, Math.min(1, base * af));
+          if(alpha<=0.001) continue;
+          nctx.globalAlpha = alpha;
+          nctx.beginPath(); nctx.moveTo(ap.x,ap.y); nctx.lineTo(b.x,b.y); nctx.stroke();
+        }
+      }
+    }
+    nctx.globalAlpha = 1;
+    nctx.restore();
+
+    // Agents & edges
+    placeAgents(); updateAgentNodes();
+
+    ectx.clearRect(0,0,W,H); ectx.save();
+    ectx.globalCompositeOperation = isColorBlackish(params.LINK_COLOR) ? 'source-over' : 'lighter';
+    const baseWidth=params.THICK_A*DPR*0.7, baseGlow=params.GLOW_LINKS*DPR*0.7;
+    const pulse=activeEdgeId?(0.5+0.5*Math.sin((performance.now()-activeEdgeSince)/260)):0;
+    const amap=currentAgentMap();
+    edges.forEach(E=>{
+      const A=amap.get(E.from), B=amap.get(E.to); if(!A||!B) return;
+      const isActive=(E.id===activeEdgeId);
+      ectx.lineWidth=isActive?baseWidth*(1.0+0.9*pulse):baseWidth;
+      ectx.strokeStyle=colorWithAlpha(params.LINK_COLOR, isActive?1.0:0.85);
+      ectx.shadowBlur=isActive?baseGlow*(1.2+0.8*pulse):baseGlow; ectx.shadowColor=params.LINK_COLOR; ectx.globalAlpha=isActive?1:0.95;
+      ectx.beginPath(); ectx.moveTo(A.x,A.y); ectx.lineTo(B.x,B.y); ectx.stroke();
+
+      if(isActive){
+        ectx.save();
+        const scale = panelOpen ? 1.5 : 1.0; // larger when panel open
+        const baseR = (params.LINK_ORB_SIZE||3) * DPR;
+        const orbR = baseR * scale;
+        const N = 10; // number of orbs equally spaced
+        const tNow = (performance.now()/1600) % 1; // normalized time 0..1
+        for(let k=0;k<N;k++){
+          const tt = (tNow + k/N) % 1;
+          const x = A.x + (B.x - A.x)*tt;
+          const y = A.y + (B.y - A.y)*tt;
+          ectx.beginPath();
+          ectx.fillStyle = colorWithAlpha(params.LINK_ORB_COLOR || params.LINK_COLOR, 0.95);
+          ectx.shadowBlur = Math.max(8*DPR, baseR*1.6);
+          ectx.shadowColor = params.LINK_ORB_COLOR || params.LINK_COLOR;
+          ectx.arc(x,y,orbR,0,Math.PI*2);
+          ectx.fill();
+        }
+        ectx.restore();
+      }
+    });
+    ectx.restore();
+
+    drawVignette();
+
+    requestAnimationFrame(tick);
+  }
+
+  // Color helpers
+  function colorWithAlpha(c, a){
+    if(c.startsWith('#')){ const {r,g,b}=hexToRgb(c); return `rgba(${r},${g},${b},${a})`; }
+    if(c.startsWith('hsl')){ return c.replace('hsl','hsla').replace(')',`, ${a})`); }
+    return c;
+  }
+  function isColorBlackish(c){
+    // Basic luminance check. Works for hex and hsl.
+    if(c.startsWith('#')){
+      const {r,g,b}=hexToRgb(c);
+      const L = (0.2126*r + 0.7152*g + 0.0722*b)/255;
+      return L < 0.05; // near black
+    }
+    if(c.startsWith('hsl')){
+      try{
+        // Extract lightness value if provided as hsl(h s% l%) or hsl(h s l)
+        const m=c.match(/hsl[a]?\(([^)]+)\)/i); if(!m) return false;
+        const parts=m[1].split(/[,\s]+/).filter(Boolean);
+        const l=parts[2]||'0%';
+        const lv=parseFloat(l)/100; return lv<0.08;
+      }catch(e){ return false; }
+    }
+    return false;
+  }
+  function hexToRgb(hex){ let h=hex.replace('#',''); if(h.length===3){ h=[h[0],h[0],h[1],h[1],h[2],h[2]].join(''); } const num=parseInt(h,16); return { r:(num>>16)&255, g:(num>>8)&255, b:num&255 }; }
+  function hexToRgba(hex,a){ const {r,g,b}=hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
+  function hslToRgb(h,s,l){ const a=s*Math.min(l,1-l); const f=n=>{ const k=(n+h*12)%12; const c=l-a*Math.max(Math.min(k-3,9-k,1),-1); return Math.round(255*c); }; return [f(0),f(8),f(4)]; }
+  function rgbToHex([r,g,b]){ return '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+
+  // Boot
+  mountAgents();
+  resize();
+  tick();
+})();
+</script>
+</body>
+</html>
