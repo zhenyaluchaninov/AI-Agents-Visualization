@@ -169,13 +169,43 @@
 }
 
 :global(.chatpin) {
-  position: absolute; translate: -50% -100%; pointer-events: auto; width: 28px; height: 28px; border-radius: 999px;
+  position: absolute; translate: -50% -100%; pointer-events: auto; width: 36px; height: 36px; border-radius: 999px;
   display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
   backdrop-filter: blur(6px); box-shadow: 0 8px 20px rgba(0,0,0,.35); font-size: 14px; color: #fff;
   transition: transform .18s cubic-bezier(.25,.1,.25,1), background-color .2s ease;
   will-change: transform;
 }
 :global(.chatpin:hover), :global(.chatpin:focus-visible) { background: rgba(255,255,255,.2); transform: scale(1.38); outline: none; }
+
+/* Inline SVG sizing and animated dots */
+:global(.chatpin svg.ci) { width: 29px; height: 29px; display: block; }
+:global(.chatpin svg) { width: 29px; height: 29px; display: block; pointer-events: none; }
+:global(.chatpin svg.ci) {
+  /* Same readable halo as agent labels */
+  filter:
+    drop-shadow(0 var(--agent-label-shadow-y) var(--agent-label-shadow-blur) var(--agent-label-shadow-color))
+    drop-shadow(0 0 var(--agent-label-outline-blur) var(--agent-label-outline-color));
+}
+:global(.chatpin .ci-bubble) { /* stroke uses currentColor set on button */ }
+:global(.chatpin .ci-dots circle),
+:global(.chatpin svg.ci circle) { opacity: 1; transform-origin: center; animation: ciTyping 1.5s ease-in-out infinite; }
+:global(.chatpin .ci-dots circle:nth-child(1)) { animation-delay: 0s; }
+:global(.chatpin .ci-dots circle:nth-child(2)) { animation-delay: .2s; }
+:global(.chatpin .ci-dots circle:nth-child(3)) { animation-delay: .4s; }
+
+@keyframes ciTyping {
+  0% { transform: translateY(0); }
+  20% { transform: translateY(-1.2px); }
+  36.666% { transform: translateY(0); } /* return by 1.0s */
+  100% { transform: translateY(0); }    /* hold ~0.5s with duration=1.5s */
+}
+
+:global(.chatpin.active .ci-dots circle:nth-child(1)),
+:global(.chatpin.active svg.ci circle:nth-child(1)) { animation: ciTyping 1.5s ease-in-out infinite; animation-delay: 0s; }
+:global(.chatpin.active .ci-dots circle:nth-child(2)),
+:global(.chatpin.active svg.ci circle:nth-child(2)) { animation: ciTyping 1.5s ease-in-out infinite; animation-delay: .15s; }
+:global(.chatpin.active .ci-dots circle:nth-child(3)),
+:global(.chatpin.active svg.ci circle:nth-child(3)) { animation: ciTyping 1.5s ease-in-out infinite; animation-delay: .3s; }
 
 /* Chat side panel */
 :global(.panel) {

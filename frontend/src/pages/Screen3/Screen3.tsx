@@ -81,6 +81,52 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
     const agentsLayer = $('agents') as HTMLDivElement;
     const agentEls = new Map<string, HTMLDivElement>();
     const chatPins = new Map<string, HTMLButtonElement>();
+    // Custom chat icon (inline SVG) that fits design and supports animated dots
+    function chatIconSvg() {
+      return `
+        <svg class=\"ci\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" aria-hidden=\"true\">
+          <g class=\"ci-bubble\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\">
+            <path d=\"M6 5.5h12a2.5 2.5 0 0 1 2.5 2.5v6a2.5 2.5 0 0 1-2.5 2.5H10.2c-.43 0-.85.13-1.2.36L6 19.5v-2.9A2.5 2.5 0 0 1 3.5 14V8A2.5 2.5 0 0 1 6 5.5Z\"/>
+          </g>
+          <g class=\"ci-dots\" fill=\"currentColor\">
+            <circle cx=\"9\" cy=\"12\" r=\"1.3\"/>
+            <circle cx=\"12\" cy=\"12\" r=\"1.3\"/>
+            <circle cx=\"15\" cy=\"12\" r=\"1.3\"/>
+          </g>
+        </svg>
+      `;
+    }
+    // Defaults, tuned to your screenshot
+    const DEFAULT_CHAT_ICON_PX = 29;
+    const DEFAULT_CHAT_PIN_PX = 36;
+
+    function tunePinSvg(pin: HTMLButtonElement) {
+      const svg = pin.querySelector('svg');
+      if (!svg) return;
+      svg.classList.add('ci');
+      svg.removeAttribute('width');
+      svg.removeAttribute('height');
+    }
+    function applyChatPinSizing() {
+      const pinSize = DEFAULT_CHAT_PIN_PX;
+      const iconSize = DEFAULT_CHAT_ICON_PX;
+      chatPins.forEach((pin) => {
+        pin.style.width = pinSize + 'px';
+        pin.style.height = pinSize + 'px';
+        const svg = pin.querySelector('svg');
+        if (svg) {
+          (svg as SVGElement).style.width = iconSize + 'px';
+          (svg as SVGElement).style.height = iconSize + 'px';
+        }
+      });
+    }
+    function applyChatPinIcons() {
+      chatPins.forEach((pin) => {
+        pin.setAttribute('type', 'button');
+        pin.innerHTML = chatIconSvg();
+        tunePinSvg(pin);
+      });
+    }
     const AGENT_COLORS: Record<string, string> = {
       // mapped from Screen2 persona palette
       A1: '#9d8ed4', // Research → Visionary
@@ -90,6 +136,7 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
       A5: '#6ba3d4', // Engineer → Cautious
       A6: '#ff6b6b', // Ops → Critic
     };
+    function darkenHexToRgba(hex: string, mul: number, alpha: number) { const { r, g, b } = hexToRgb(hex); const rr = Math.max(0, Math.min(255, Math.round(r * mul))); const gg = Math.max(0, Math.min(255, Math.round(g * mul))); const bb = Math.max(0, Math.min(255, Math.round(b * mul))); return `rgba(${rr},${gg},${bb},${alpha})`; }
     function mountAgents() {
       agentsLayer.innerHTML = '';
       agentEls.clear(); chatPins.clear();
@@ -101,20 +148,30 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
         el.style.background = hexToRgba(col, 0.22);
         el.style.borderColor = hexToRgba(col, 0.65);
         el.style.boxShadow = `0 8px 20px ${hexToRgba(col, 0.35)}`;
+        const shadow = darkenHexToRgba(col, 0.75, 0.85);
+        const halo = darkenHexToRgba(col, 0.75, 0.38);
+        el.style.setProperty('--agent-label-shadow-color', shadow);
+        el.style.setProperty('--agent-label-outline-color', halo);
         agentsLayer.appendChild(el); agentEls.set(a.id, el);
         const pin = document.createElement('button'); pin.className = 'chatpin'; pin.textContent = '💬';
         const col2 = AGENT_COLORS[a.id] || '#8b7df0';
+        // Ensure emoji is replaced by our SVG icon immediately at creation
+        try { pin.setAttribute('type', 'button'); pin.innerHTML = chatIconSvg(); tunePinSvg(pin); } catch {}
         pin.style.background = hexToRgba(col2, 0.28);
         pin.style.borderColor = hexToRgba(col2, 0.75);
         pin.style.color = '#fff';
         pin.style.boxShadow = `0 8px 20px ${hexToRgba(col2, 0.35)}`;
+        pin.style.setProperty('--agent-label-shadow-color', shadow);
+        pin.style.setProperty('--agent-label-outline-color', halo);
         pin.addEventListener('click', () => openChatForAgent(a.id)); agentsLayer.appendChild(pin); chatPins.set(a.id, pin);
       });
     }
     function placeAgents() {
       for (let i = 0; i < AGENTS.length; i++) {
         const el = agentEls.get(AGENTS[i].id)!; const pin = chatPins.get(AGENTS[i].id)!; const p = anchors[i]; if (!el || !pin || !p) continue;
-        const x = p.x / DPR, y = p.y / DPR; el.style.left = x + 'px'; el.style.top = y + 'px'; pin.style.left = x + 'px'; pin.style.top = (y - 30) + 'px';
+        const x = p.x / DPR, y = p.y / DPR; el.style.left = x + 'px'; el.style.top = y + 'px'; pin.style.left = x + 'px';
+        const pinSize = DEFAULT_CHAT_PIN_PX; // place above agent, but 10% lower than before
+        pin.style.top = (y - (pinSize + 2) + pinSize * 0.10) + 'px';
       }
     }
 
@@ -125,15 +182,24 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
     const edges = [['A1', 'A3'], ['A1', 'A4'], ['A2', 'A5'], ['A2', 'A6'], ['A3', 'A5'], ['A4', 'A6'], ['A5', 'A6']]
       .map((e, i) => ({ id: 'E' + (i + 1), from: e[0], to: e[1], seed: Math.random() }));
     let activeEdgeId: string | null = null, activeEdgeSince = 0;
+    let lastActiveEdgeId: string | null = null;
     // Ambient link shimmer state
     let ambientAlpha = 1; // fades out when chat active
     let ambientActive = new Set<string>();
     let ambientLastSwitch = 0;
 
     function currentAgentMap() { const m = new Map<string, { x: number; y: number; name: string }>(); for (let i = 0; i < AGENTS.length; i++) { const p = anchors[i]; m.set(AGENTS[i].id, { x: p.x, y: p.y, name: AGENTS[i].name }); } return m; }
+    function updatePinActivity() {
+      chatPins.forEach((pin) => pin.classList.remove('active'));
+      if (!activeEdgeId) return;
+      const e = edges.find((E) => E.id === activeEdgeId);
+      if (!e) return;
+      chatPins.get(e.from)?.classList.add('active');
+      chatPins.get(e.to)?.classList.add('active');
+    }
     const chat = initChatPanel(root, {
       onOpenChange: (o) => { panelOpen = o; },
-      onActivateEdge: (id) => { activeEdgeId = id; if (id) activeEdgeSince = performance.now(); },
+      onActivateEdge: (id) => { activeEdgeId = id; if (id) activeEdgeSince = performance.now(); updatePinActivity(); },
     });
     function openChatForAgent(agentId: string) {
       const e = edges.find((E) => E.from === agentId || E.to === agentId); if (!e) return;
@@ -183,6 +249,9 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
       const now = performance.now();
       const dt = Math.min(0.033, (now - lastT) / 1000);
       lastT = now;
+      if (activeEdgeId !== lastActiveEdgeId) { updatePinActivity(); lastActiveEdgeId = activeEdgeId; }
+      // Ensure chat pin/icon sizing is applied (cheap for <= 6 pins)
+      applyChatPinSizing();
       drawBackground();
       spacingForces();
       nctx.save(); nctx.globalCompositeOperation = isColorBlackish(params.COLOR) ? 'source-over' : 'lighter'; nctx.shadowBlur = 0; nctx.shadowColor = 'transparent'; nctx.fillStyle = colorWithAlpha(params.COLOR, 1.0); nctx.filter = params.BLUR > 0 ? `blur(${params.BLUR}px)` : 'none';
@@ -269,6 +338,8 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
     initDevControls(root, params, { reseedParticles, randomizeNodeSpacings });
 
     mountAgents();
+    applyChatPinIcons();
+    applyChatPinSizing();
     resize();
     rafId = requestAnimationFrame(tick);
     window.addEventListener('resize', resize);
