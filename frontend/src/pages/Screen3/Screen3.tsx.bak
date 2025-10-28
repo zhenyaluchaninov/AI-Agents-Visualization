@@ -4,24 +4,10 @@ import { DevControls, DEFAULT_PARAMS, initDevControls } from './DevControls';
 import { ChatPanel, initChatPanel } from './ChatPanel';
 import type { Screen3Params } from './DevControls';
 
-type Screen3Props = { devControlsEnabled?: boolean };
+const ENABLE_CONTROLS_DEFAULT = true;
 
-export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
+export default function Screen3() {
   const rootRef = useRef<HTMLDivElement>(null);
-
-  // Ensure the page doesn't scroll while Screen3 is active
-  useEffect(() => {
-    const html = document.documentElement;
-    const body = document.body;
-    const prevHtmlOverflow = html.style.overflowY;
-    const prevBodyOverflow = body.style.overflowY;
-    html.style.overflowY = 'hidden';
-    body.style.overflowY = 'hidden';
-    return () => {
-      html.style.overflowY = prevHtmlOverflow;
-      body.style.overflowY = prevBodyOverflow;
-    };
-  }, []);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -290,12 +276,14 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
         <div className={styles.title}>Agents are discussing</div>
         <div className={styles.subtitle}>Tap a chat icon to peek inside.</div>
 
-        <DevControls enabled={devControlsEnabled} />
-        <div className="viewport" id="vp">
-          <canvas id="layer-neon" />
-          <canvas id="layer-edges" />
-          <canvas id="layer-vignette" />
-          <div id="agents" aria-hidden="false" />
+        <div className={styles.simRow}>
+          <DevControls enabled={ENABLE_CONTROLS_DEFAULT} />
+          <div className="viewport" id="vp">
+            <canvas id="layer-neon" />
+            <canvas id="layer-edges" />
+            <canvas id="layer-vignette" />
+            <div id="agents" aria-hidden="false" />
+          </div>
         </div>
 
         <ChatPanel />
@@ -303,4 +291,5 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
     </div>
   );
 }
+
 

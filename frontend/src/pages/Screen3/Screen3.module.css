@@ -24,12 +24,12 @@
   --font-sans: "Inter", "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 
   position: relative;
-  min-height: 100vh;
+  height: 100vh;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
   overflow-x: hidden;
-  overflow-y: visible;
+  overflow-y: hidden;
 }
 
 /* Floating background orbs (same as Screen1) */
@@ -54,7 +54,7 @@
 .content {
   width: min(1280px, 94vw);
   margin: 0 auto;
-  padding: 32px 0 60px;
+  padding: 24px 0 20px;
 }
 
 .title {
@@ -76,10 +76,11 @@
   margin-bottom: 18px;
 }
 
+
 .cta {
   width: min(1280px, 94vw);
-  margin: 30px auto 36px;
   text-align: center;
+  margin: 22px auto 0;
 }
 
 .btn {
@@ -114,14 +115,16 @@
   position: relative;
   width: clamp(880px, 62vw, 1280px);
   aspect-ratio: 16 / 9;
-  max-height: 74vh;
+  max-height: 70vh;
   margin: 28px auto 10px;
   /* Light pastel fallback to match Screen1/2 */
   background: radial-gradient(800px 520px at 50% 50%, #ffffff 0%, #d3d0f0 80%);
   border-radius: 22px;
-  box-shadow: 0 15px 60px rgba(0,0,0,.18);
+  /* Shadow reduced ~35% (blur and opacity, and a bit of offset) */
+  box-shadow: 0 10px 39px rgba(0,0,0,.12);
   overflow: hidden;
 }
+
 
 :global(#layer-neon),
 :global(#layer-edges),
@@ -154,10 +157,19 @@
 /* Chat side panel */
 :global(.panel) {
   position: fixed; top: 0; right: 0; height: 100%; width: min(420px, 100vw); background: rgba(8,14,24,.95);
-  backdrop-filter: blur(10px); border-left: 1px solid rgba(255,255,255,.12); box-shadow: -12px 0 50px rgba(0,0,0,.45);
-  transform: translateX(100%); transition: transform .38s cubic-bezier(.22,.61,.36,1); display: flex; flex-direction: column;
+  backdrop-filter: blur(10px);
+  /* when closed, hide chrome to avoid visible right-edge shadow */
+  border-left: none; box-shadow: none; visibility: hidden;
+  transform: translateX(100%);
+  transition: transform .38s cubic-bezier(.22,.61,.36,1);
+  display: flex; flex-direction: column;
 }
-:global(.panel.open) { transform: translateX(0); }
+:global(.panel.open) {
+  transform: translateX(0);
+  border-left: 1px solid rgba(255,255,255,.12);
+  box-shadow: -12px 0 50px rgba(0,0,0,.45);
+  visibility: visible;
+}
 :global(.panel .hd) { padding: 14px; border-bottom: 1px solid rgba(255,255,255,.1); display: flex; align-items: center; justify-content: space-between; }
 :global(.panel .body) { padding: 14px; overflow: visible; display: flex; flex-direction: column; gap: 10px; }
 
@@ -173,6 +185,7 @@
   border: 1px solid rgba(120,180,255,.25); border-radius: 12px; padding: 10px 8px;
   box-shadow: 0 8px 30px rgba(0,0,0,.35);
 }
+
 :global(#controls h2) { margin: 0 0 8px; font-size: 14px; letter-spacing: .4px; font-weight: 600; color: #a7ceff; }
 :global(#controls .group) { border-top: 1px solid rgba(255,255,255,.08); margin: 10px 0 0; padding-top: 6px; }
 :global(#controls .group > summary) { list-style: none; cursor: pointer; color: #a7ceff; font-weight: 600; font-size: 13px; margin: 0 0 6px; }
