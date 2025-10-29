@@ -203,6 +203,8 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
     });
     function openChatForAgent(agentId: string) {
       const e = edges.find((E) => E.from === agentId || E.to === agentId); if (!e) return;
+      // If the same conversation is already open, ignore repeated clicks
+      if (panelOpen && activeEdgeId === e.id) return;
       const amap = currentAgentMap(); const edge = { id: e.id, from: amap.get(e.from)!, to: amap.get(e.to)! };
       chat.openChat(edge);
     }
@@ -367,9 +369,11 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
           <canvas id="layer-edges" />
           <canvas id="layer-vignette" />
           <div id="agents" aria-hidden="false" />
+          {/* Chat is integrated inside the simulation viewport (left side) */}
+          <ChatPanel />
         </div>
-
-        <ChatPanel />
+        {/* Return Continue button to the original place (below viewport) */}
+        <div className={styles.cta}><button id="continueBtn" className={styles.btn} disabled>Continue</button></div>
       </div>
     </div>
   );
