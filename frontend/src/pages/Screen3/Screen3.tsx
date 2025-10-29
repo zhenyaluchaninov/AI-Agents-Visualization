@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import styles from './Screen3.module.css';
 import { DevControls, DEFAULT_PARAMS, initDevControls } from './DevControls';
 import { ChatPanel, initChatPanel } from './ChatPanel';
@@ -6,8 +6,12 @@ import type { Screen3Params } from './DevControls';
 
 type Screen3Props = { devControlsEnabled?: boolean };
 
-export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
+export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const devControlsReadyRef = useRef<(() => void) | null>(null);
+  const handleDevControlsReady = useCallback(() => {
+    devControlsReadyRef.current?.();
+  }, []);
 
   // Ensure the page doesn't scroll while Screen3 is active
   useEffect(() => {
@@ -43,18 +47,29 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
     // Shared simulation parameters (mutated by dev controls when present)
     const params: Screen3Params = { ...DEFAULT_PARAMS };
 
-    function resize() {
-      const r = vp.getBoundingClientRect();
-      W = neon.width = Math.floor(r.width * DPR);
-      H = neon.height = Math.floor(r.height * DPR);
+    type ResizeOptions = { keepSeed?: boolean };
+    let seededOnce = false;
+
+    function resize(options: ResizeOptions = {}) {
+      const keepSeed = !!options.keepSeed && seededOnce;
+      const width = vp.clientWidth || vp.getBoundingClientRect().width;
+      const height = vp.clientHeight || vp.getBoundingClientRect().height;
+      const cssW = Math.max(1, width);
+      const cssH = Math.max(1, height);
+      W = neon.width = Math.floor(cssW * DPR);
+      H = neon.height = Math.floor(cssH * DPR);
       edgesCanvas.width = W; edgesCanvas.height = H;
       vigCanvas.width = W; vigCanvas.height = H;
-      [neon, edgesCanvas, vigCanvas].forEach((c) => { c.style.width = r.width + 'px'; c.style.height = r.height + 'px'; });
+      [neon, edgesCanvas, vigCanvas].forEach((c) => { c.style.width = cssW + 'px'; c.style.height = cssH + 'px'; });
       buildAnchors();
       buildAgentNodes();
-      reseedParticles(params.MAX);
+      if (!keepSeed) {
+        reseedParticles(params.MAX);
+        seededOnce = true;
+      }
       placeAgents();
     }
+    const handleResize = () => resize();
 
     // Dev controls (if markup exists) will mutate params and wire listeners
     // The wiring itself is invoked later (after helper fns are defined) for clarity.
@@ -81,6 +96,20 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
     const agentsLayer = $('agents') as HTMLDivElement;
     const agentEls = new Map<string, HTMLDivElement>();
     const chatPins = new Map<string, HTMLButtonElement>();
+    const continueBtn = root.querySelector<HTMLButtonElement>('#continueBtn');
+    if (continueBtn) {
+      continueBtn.disabled = true;
+      continueBtn.classList.remove('enabled');
+    }
+    let continueUnlocked = false;
+    const unlockContinue = () => {
+      if (continueUnlocked) return;
+      continueUnlocked = true;
+      if (continueBtn) {
+        continueBtn.disabled = false;
+        continueBtn.classList.add('enabled');
+      }
+    };
     // Custom chat icon (inline SVG) that fits design and supports animated dots
     function chatIconSvg() {
       return `
@@ -152,6 +181,7 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
         const halo = darkenHexToRgba(col, 0.75, 0.38);
         el.style.setProperty('--agent-label-shadow-color', shadow);
         el.style.setProperty('--agent-label-outline-color', halo);
+        el.classList.add('introHidden');
         agentsLayer.appendChild(el); agentEls.set(a.id, el);
         const pin = document.createElement('button'); pin.className = 'chatpin'; pin.textContent = '💬';
         const col2 = AGENT_COLORS[a.id] || '#8b7df0';
@@ -163,6 +193,9 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
         pin.style.boxShadow = `0 8px 20px ${hexToRgba(col2, 0.35)}`;
         pin.style.setProperty('--agent-label-shadow-color', shadow);
         pin.style.setProperty('--agent-label-outline-color', halo);
+        pin.classList.add('introHidden');
+        pin.disabled = true;
+        pin.setAttribute('aria-hidden', 'true');
         pin.addEventListener('click', () => openChatForAgent(a.id)); agentsLayer.appendChild(pin); chatPins.set(a.id, pin);
       });
     }
@@ -207,6 +240,7 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
       if (panelOpen && activeEdgeId === e.id) return;
       const amap = currentAgentMap(); const edge = { id: e.id, from: amap.get(e.from)!, to: amap.get(e.to)! };
       chat.openChat(edge);
+      unlockContinue();
     }
 
     class PNode {
@@ -225,7 +259,7 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
       }
       step(dt: number) {
         const spring = 0.07; const dxc = this.cx - this.x, dyc = this.cy - this.y; this.vx += dxc * spring * dt; this.vy += dyc * spring * dt;
-        if (mouse.x !== null) { const dx = mouse.x - this.x, dy = mouse.y - this.y; const dist = Math.hypot(dx, dy) + 1e-3; const R = params.ATTR_R * DPR; if (dist < R) { const falloff = (1 - dist / R); const force = params.ATTR * 28 * falloff; this.vx += (dx / dist) * force * dt; this.vy += (dy / dist) * force * dt; } }
+        if (mouse.x !== null && mouse.y !== null) { const dx = mouse.x - this.x, dy = mouse.y - this.y; const dist = Math.hypot(dx, dy) + 1e-3; const R = params.ATTR_R * DPR; if (dist < R) { const falloff = (1 - dist / R); const force = params.ATTR * 28 * falloff; this.vx += (dx / dist) * force * dt; this.vy += (dy / dist) * force * dt; } }
         const curl = 0.22 * (params.LIFELESS ? 0.6 : 1.0); const ox = -this.vy, oy = this.vx; this.vx += ox * 0.02 * curl * dt; this.vy += oy * 0.02 * curl * dt;
         const damp = 0.985; this.vx *= Math.pow(damp, dt * 60); this.vy *= Math.pow(damp, dt * 60); this.x += this.vx * dt * 60; this.y += this.vy * dt * 60; this.pulse += 0.02 * dt * 60; this.age += dt; if (this.age > this.life && !params.LIFELESS) { this.respawn(); }
       }
@@ -240,10 +274,21 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
     function computeGrid(n: number) { gridCols = Math.max(4, Math.floor(Math.sqrt(n))); gridRows = Math.max(4, Math.round(n / gridCols)); cellW = W / gridCols; cellH = H / gridRows; }
     function acceptPos(px: number, py: number) { const R0 = (params.HOLE_R || 0) * DPR; if (R0 <= 0) return true; const dx = px - W / 2, dy = py - H / 2; const r = Math.hypot(dx, dy); const fade = 60 * DPR; const Rf = R0 + fade; if (r <= R0) return false; if (r >= Rf) return true; const p = (r - R0) / (Rf - R0); return Math.random() < p; }
     function randomCellPosition() { let tries = 0; while (true) { const c = Math.floor(Math.random() * gridCols); const r = Math.floor(Math.random() * gridRows); const px = (c + Math.random()) * cellW; const py = (r + Math.random()) * cellH; if (acceptPos(px, py)) return { x: px, y: py }; tries++; if (tries > 8) { const R0 = (params.HOLE_R || 0) * DPR; const fade = 60 * DPR; const base = R0 + fade + 10 * DPR; const rr = base + Math.random() * Math.max(W, H) * 0.3; const ang = Math.random() * Math.PI * 2; const px2 = W / 2 + Math.cos(ang) * rr; const py2 = H / 2 + Math.sin(ang) * rr; return { x: px2, y: py2 }; } } }
-    function reseedParticles(nCount: number) { nodes.length = 0; const n = Math.max(1, nCount | 0); computeGrid(n); let added = 0; for (let r = 0; r < gridRows; r++) { for (let c = 0; c < gridCols; c++) { if (added >= n) break; const px = (c + Math.random()) * cellW; const py = (r + Math.random()) * cellH; let pos = { x: px, y: py }; if (!acceptPos(pos.x, pos.y)) pos = randomCellPosition(); nodes.push(new PNode(pos.x, pos.y)); added++; } } while (nodes.length < n) { const p = randomCellPosition(); nodes.push(new PNode(p.x, p.y)); } }
+    function reseedParticles(nCount: number) { nodes.length = 0; const n = Math.max(1, nCount | 0); computeGrid(n); let added = 0; for (let r = 0; r < gridRows; r++) { for (let c = 0; c < gridCols; c++) { if (added >= n) break; const px = (c + Math.random()) * cellW; const py = (r + Math.random()) * cellH; let pos = { x: px, y: py }; if (!acceptPos(pos.x, pos.y)) pos = randomCellPosition(); nodes.push(new PNode(pos.x, pos.y)); added++; } } while (nodes.length < n) { const p = randomCellPosition(); nodes.push(new PNode(p.x, p.y)); } seededOnce = true; }
     function randomizeNodeSpacings() { const minS = Math.min(params.SPACING_MIN, params.SPACING_MAX); const maxS = Math.max(params.SPACING_MIN, params.SPACING_MAX); for (let i = 0; i < nodes.length; i++) { nodes[i].sep = minS + Math.random() * Math.max(0, maxS - minS); } }
 
     let rafId: number | null = null;
+
+    // Intro sequence state
+    type IntroEdge = { fromId: string; toId: string; start: number; dur: number; resolve: () => void } | null;
+    let introRunning = true;
+    let introEdge: IntroEdge = null;
+    const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    function animateIntroEdge(fromId: string, toId: string, dur: number) {
+      return new Promise<void>((resolve) => {
+        introEdge = { fromId, toId, start: performance.now(), dur, resolve };
+      });
+    }
     function drawBackground() { nctx.clearRect(0, 0, W, H); const g = nctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7); g.addColorStop(0, hexToRgba(params.BG1, 1.0)); g.addColorStop(1, hexToRgba(params.BG2, 1.0)); nctx.fillStyle = g; nctx.fillRect(0, 0, W, H); }
     function drawVignette() { vctx.clearRect(0, 0, W, H); if (params.VIG_STRENGTH <= 0) return; const g = vctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.2, W / 2, H / 2, Math.max(W, H) * 0.7); const rgba = hexToRgb(params.VIG_COLOR); vctx.globalCompositeOperation = 'source-over'; g.addColorStop(0, `rgba(${rgba.r},${rgba.g},${rgba.b},0)`); g.addColorStop(1, `rgba(${rgba.r},${rgba.g},${rgba.b},${params.VIG_STRENGTH})`); vctx.fillStyle = g; vctx.fillRect(0, 0, W, H); }
     function spacingForces() { const k = 12; for (let i = 0; i < nodes.length; i++) { const a = nodes[i]; for (let j = i + 1; j < nodes.length; j++) { const b = nodes[j]; const dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy; const S = Math.max(4, ((a.sep || params.SPACING_MIN) + (b.sep || params.SPACING_MIN)) * 0.5) * DPR; const S2 = S * S; if (d2 < S2 && d2 > 1) { const d = Math.sqrt(d2); const push = (1 - d / S) * (k / d); const fx = dx * push, fy = dy * push; a.vx += fx * 0.001; a.vy += fy * 0.001; b.vx -= fx * 0.001; b.vy -= fy * 0.001; } } } }
@@ -282,6 +327,38 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
       nctx.globalAlpha = 1; nctx.restore();
       placeAgents(); updateAgentNodes();
       ectx.clearRect(0, 0, W, H); ectx.save(); ectx.globalCompositeOperation = isColorBlackish(params.LINK_COLOR) ? 'source-over' : 'lighter';
+
+      // During intro, draw only the animated link segment and a traveling orb
+      if (introRunning) {
+        if (introEdge) {
+          const amap = currentAgentMap();
+          const A = amap.get(introEdge.fromId);
+          const B = amap.get(introEdge.toId);
+          if (A && B) {
+            const t = Math.max(0, Math.min(1, (now - introEdge.start) / introEdge.dur));
+            const x = A.x + (B.x - A.x) * t;
+            const y = A.y + (B.y - A.y) * t;
+            const baseWidth = params.THICK_A * DPR * 0.7;
+            const baseGlow = params.GLOW_LINKS * DPR * 0.7;
+            ectx.lineWidth = baseWidth;
+            ectx.strokeStyle = colorWithAlpha(params.LINK_COLOR, 1.0);
+            ectx.shadowBlur = baseGlow; ectx.shadowColor = params.LINK_COLOR; ectx.globalAlpha = 1;
+            ectx.beginPath(); ectx.moveTo(A.x, A.y); ectx.lineTo(x, y); ectx.stroke();
+
+            // Moving orb on the segment
+            ectx.save();
+            const baseR = Math.max(2 * DPR, (params.LINK_ORB_SIZE || 3) * DPR);
+            ectx.beginPath();
+            ectx.fillStyle = colorWithAlpha(params.LINK_ORB_COLOR || params.LINK_COLOR, 0.95);
+            ectx.shadowBlur = Math.max(8 * DPR, baseR * 1.6); ectx.shadowColor = params.LINK_ORB_COLOR || params.LINK_COLOR;
+            ectx.arc(x, y, baseR, 0, Math.PI * 2); ectx.fill();
+            ectx.restore();
+
+            if (t >= 1 && introEdge) { const cb = introEdge.resolve; introEdge = null; try { cb(); } catch {} }
+          }
+        }
+        ectx.restore(); drawVignette(); rafId = requestAnimationFrame(tick); return;
+      }
       const baseWidth = params.THICK_A * DPR * 0.7, baseGlow = params.GLOW_LINKS * DPR * 0.7; const pulse = activeEdgeId ? (0.5 + 0.5 * Math.sin((performance.now() - activeEdgeSince) / 260)) : 0; const amap = currentAgentMap();
       // Update ambient shimmer state
       const targetAmb = activeEdgeId ? 0 : 1;
@@ -337,18 +414,66 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
     function hexToRgba(hex: string, a: number) { const { r, g, b } = hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
 
     // Wire dev controls (if present) before first render to ensure initial UI values apply
-    initDevControls(root, params, { reseedParticles, randomizeNodeSpacings });
+    const wireDevControls = () => initDevControls(root, params, { reseedParticles, randomizeNodeSpacings });
+    devControlsReadyRef.current = wireDevControls;
+    wireDevControls();
 
     mountAgents();
     applyChatPinIcons();
     applyChatPinSizing();
     resize();
     rafId = requestAnimationFrame(tick);
-    window.addEventListener('resize', resize);
+    window.addEventListener('resize', handleResize);
+
+    // Orchestrated intro sequence: viewport fade, agents reveal, chained links, enable interactions
+    (async () => {
+      try {
+        // Viewport fade-in
+        requestAnimationFrame(() => {
+          vp.classList.add('intro-in');
+          vp.classList.remove('intro-start');
+        });
+        await sleep(520);
+        resize({ keepSeed: true });
+        await sleep(1000);
+
+        // Reveal agents one by one
+        let agentDelay = 140;
+        for (let i = 0; i < AGENTS.length; i++) {
+          const el = agentEls.get(AGENTS[i].id);
+          if (el) el.classList.remove('introHidden');
+          if (i < AGENTS.length - 1) {
+            await sleep(agentDelay);
+            agentDelay = Math.round(agentDelay * 1.3);
+          }
+        }
+
+        await sleep(1500);
+
+        // Sequential links with chat pins appearing upon send/receive
+        for (let i = 0; i < AGENTS.length - 1; i++) {
+          const fromId = AGENTS[i].id; const toId = AGENTS[i + 1].id;
+          const fromPin = chatPins.get(fromId);
+          if (fromPin) { fromPin.classList.remove('introHidden'); }
+          await sleep(160);
+          await animateIntroEdge(fromId, toId, 820);
+          const toPin = chatPins.get(toId);
+          if (toPin) { toPin.classList.remove('introHidden'); }
+          await sleep(140);
+        }
+
+        // Enable interactions and ambient edges
+        introRunning = false;
+        chatPins.forEach((pin) => { pin.disabled = false; pin.removeAttribute('aria-hidden'); pin.style.pointerEvents = 'auto'; });
+      } catch {
+        introRunning = false; chatPins.forEach((pin) => { pin.disabled = false; pin.removeAttribute('aria-hidden'); pin.style.pointerEvents = 'auto'; });
+      }
+    })();
 
     return () => {
       if (rafId != null) cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', resize);
+      window.removeEventListener('resize', handleResize);
+      devControlsReadyRef.current = null;
       chat.destroy?.();
     };
   }, []);
@@ -363,8 +488,8 @@ export default function Screen3({ devControlsEnabled = true }: Screen3Props) {
         <div className={styles.title}>Agents are discussing</div>
         <div className={styles.subtitle}>Tap a chat icon to peek inside.</div>
 
-        <DevControls enabled={devControlsEnabled} />
-        <div className="viewport" id="vp">
+        <DevControls enabled={devControlsEnabled} onReady={handleDevControlsReady} />
+        <div className="viewport intro-start" id="vp">
           <canvas id="layer-neon" />
           <canvas id="layer-edges" />
           <canvas id="layer-vignette" />

@@ -130,7 +130,14 @@
   /* Shadow reduced ~35% (blur and opacity, and a bit of offset) */
   box-shadow: 0 10px 39px rgba(0,0,0,.12);
   overflow: hidden;
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity .48s cubic-bezier(.22,1,.36,1), transform .48s cubic-bezier(.22,1,.36,1);
 }
+
+/* Intro: viewport fade + scale */
+:global(.viewport.intro-start) { opacity: 0; transform: scale(.985); }
+:global(.viewport.intro-in) { opacity: 1; transform: scale(1); }
 
 
 :global(#layer-neon),
@@ -145,11 +152,13 @@
 
 /* Agent chips and chat pins (global so JS can add classes) */
 :global(.agent) {
-  position: absolute; translate: -50% -50%; min-width: 56px; height: 40px; padding: 0 10px;
+  position: absolute; transform: translate(-50%, -50%) scale(1); min-width: 56px; height: 40px; padding: 0 10px;
   border-radius: 12px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15);
   backdrop-filter: blur(8px); box-shadow: 0 8px 30px rgba(0,0,0,.35);
   display: flex; align-items: center; justify-content: center; pointer-events: auto;
+  transition: opacity .44s var(--ease-hover), transform .44s var(--ease-hover);
 }
+:global(.agent.introHidden) { opacity: 0; transform: translate(-50%, -50%) scale(.68); }
 :global(.agent .label) {
   font-size: 13px;
   color: #fff;
@@ -169,13 +178,14 @@
 }
 
 :global(.chatpin) {
-  position: absolute; translate: -50% -100%; pointer-events: auto; width: 36px; height: 36px; border-radius: 999px;
+  position: absolute; transform: translate(-50%, -100%) scale(1); pointer-events: auto; width: 36px; height: 36px; border-radius: 999px;
   display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
   backdrop-filter: blur(6px); box-shadow: 0 8px 20px rgba(0,0,0,.35); font-size: 14px; color: #fff;
-  transition: transform .3s cubic-bezier(.25,.1,.25,1), background-color .2s ease;
+  transition: transform .34s cubic-bezier(.25,.1,.25,1), background-color .2s ease, opacity .34s var(--ease-hover);
   will-change: transform;
 }
-:global(.chatpin:hover), :global(.chatpin:focus-visible) { background: rgba(255,255,255,.2); transform: scale(1.38); outline: none; }
+:global(.chatpin.introHidden) { opacity: 0; transform: translate(-50%, -100%) scale(.74); pointer-events: none; }
+:global(.chatpin:hover), :global(.chatpin:focus-visible) { background: rgba(255,255,255,.2); transform: translate(-50%, -100%) scale(1.38); outline: none; }
 
 /* Inline SVG sizing and animated dots */
 :global(.chatpin svg.ci) { width: 29px; height: 29px; display: block; }

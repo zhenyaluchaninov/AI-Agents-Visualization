@@ -12,7 +12,7 @@ export default function App() {
   // TEMPORARY DEBUG NAV — remove later
   const [debugScreen, setDebugScreen] = useState<null | 'screen1' | 'screen2' | 'screen3'>(null);
   const [debugOpen, setDebugOpen] = useState(true);
-  const [screen3DevControls, setScreen3DevControls] = useState(true);
+  const [screen3DevControls, setScreen3DevControls] = useState(false);
 
   const debugNav = (
     <div

@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 // no styles imported here
 
 export interface Screen3Params {
@@ -322,7 +324,12 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
   return true;
 }
 
-export function DevControls({ enabled }: { enabled: boolean }) {
+export function DevControls({ enabled, onReady }: { enabled: boolean; onReady?: () => void }) {
+  useEffect(() => {
+    if (!enabled) return;
+    onReady?.();
+  }, [enabled, onReady]);
+
   if (!enabled) return null;
   return (
     <div className="ui" id="controls" aria-hidden={false}>
