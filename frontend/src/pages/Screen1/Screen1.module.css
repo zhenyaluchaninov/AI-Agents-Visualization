@@ -1,4 +1,4 @@
-/* === Design & Motion tokens === */
+
 .root {
   --fade-duration: .6s;
   --icon-duration: .45s;
@@ -39,12 +39,24 @@
   color: var(--text);
   font-family: var(--font-sans);
   overflow-x: hidden;
+  overflow-y: hidden;
   font-optical-sizing: auto;
   font-synthesis-weight: none;
   text-rendering: optimizeLegibility;
+  opacity: 0;
+  transition: opacity var(--phase-fade) var(--ease-phase), transform var(--phase-fade) var(--ease-phase);
 }
 
-/* === Floating background orbs === */
+.entered {
+  opacity: 1;
+}
+
+.exiting {
+  opacity: 0;
+  pointer-events: none;
+}
+
+
 .bgOrb {
   position: fixed;
   border-radius: 50%;
@@ -63,7 +75,7 @@
   66% { transform: translate(-20px,20px) scale(.95) }
 }
 
-/* === Phase crossfade === */
+
 .phase {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
@@ -72,7 +84,7 @@
 }
 .active { opacity: 1; pointer-events: auto; }
 
-/* === Reveals === */
+
 .fadeUp { opacity: 0; transform: translateY(24px); }
 .reveal.fadeUp { animation: fadeUp var(--fade-duration) var(--ease-text-out) both; }
 @keyframes fadeUp { to { opacity: 1; transform: translateY(0) } }
@@ -84,7 +96,7 @@
   100% { opacity: 1; transform: translateY(0) scale(1) }
 }
 
-/* === Buttons === */
+
 .btn { 
   padding: 16px 40px;
   font-size: 15px;
@@ -111,10 +123,10 @@
 .btn:hover { transform: translateY(-3px); box-shadow: var(--shadow-xl), 0 0 100px rgba(139,125,240,.3); }
 .btn:hover::before { left: 100%; }
 
-/* === Gate === */
+
 .gateContent { text-align: center; }
 
-/* === Intro === */
+
 .introContent { text-align: center; padding: 0 24px; max-width: 900px; }
 .introTitle {
   font-size: clamp(26px,4.2vw,38px);
@@ -131,7 +143,7 @@
   color: var(--text-muted);
 }
 
-/* === Main === */
+
 .mainPhase { display: flex; align-items: center; justify-content: center; }
 .mainWrapper {
   width: 100%;
@@ -170,7 +182,7 @@
   margin-top: -2px;
 }
 
-/* === Problem cards === */
+
 .problemsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -199,7 +211,7 @@
 .problemIcon { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 16px; box-shadow: var(--shadow-md); }
 .agentSvg { width: 28px; height: 28px; }
 
-/* Icon glow helpers (match Screen 2 avatar-like glow) */
+
 .glowGold   { box-shadow: var(--shadow-sm), 0 10px 24px rgba(212,168,83,.35); }
 .glowPink   { box-shadow: var(--shadow-sm), 0 10px 24px rgba(212,122,151,.35); }
 .glowGreen  { box-shadow: var(--shadow-sm), 0 10px 24px rgba(106,181,157,.32); }
@@ -208,7 +220,7 @@
 .problemTitle { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 10px; letter-spacing: -.5px; }
 .problemDesc { font-size: 13px; color: var(--text-secondary); line-height: 1.55; }
 
-/* === Insights === */
+
 .insightsSection { margin-top: 14px; }
 .sectionHeader { text-align: center; margin-bottom: 18px; }
 .sectionTitle { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
@@ -244,7 +256,7 @@
   background: linear-gradient(135deg, rgba(139,125,240,.04), rgba(162,152,242,.06));
 }
 .insightIcon { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-/* Ensure glow overrides default box-shadow for insight icons */
+
 .insightIcon.glowGold   { box-shadow: var(--shadow-sm), 0 10px 24px rgba(212,168,83,.35); }
 .insightIcon.glowPink   { box-shadow: var(--shadow-sm), 0 10px 24px rgba(212,122,151,.35); }
 .insightIcon.glowGreen  { box-shadow: var(--shadow-sm), 0 10px 24px rgba(106,181,157,.32); }
@@ -253,13 +265,13 @@
 .insightTitle { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
 .insightDesc { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; margin-top: -2px; }
 
-/* === Continue button === */
+
 .continueSection { text-align: center; min-height: 52px; margin-top: 0; }
 .continueBtn { opacity: 0; transform: translateY(16px); }
 .show.continueBtn { animation: btnUp var(--btn-duration) var(--ease-btn) both; }
 @keyframes btnUp { to { opacity: 1; transform: translateY(0) } }
 
-/* === Team assembly === */
+
 .teamPhase { display: flex; align-items: center; justify-content: center; }
 .assemblyContent { text-align: center; padding: 0 24px; max-width: 900px; }
 .assemblyTitle {
@@ -279,11 +291,11 @@
 .agentCircle:hover { transform: translateY(-4px) scale(1.08); box-shadow: var(--shadow-md); }
 .agentSvg { width: 28px; height: 28px; }
 
-/* Assemble button reveal (should appear last) */
+
 .assembleBtn { opacity: 0; transform: translateY(16px); }
 .show.assembleBtn { animation: btnUp var(--btn-duration) var(--ease-btn) both; }
 
-/* === Responsive === */
+
 @media (max-width: 768px) {
   .mainContainer { padding: 28px 20px 10px; width: 90vw; }
   .mainWrapper { gap: 20px; }
@@ -295,3 +307,4 @@
   .btn { padding: 14px 32px; font-size: 14px; }
   .insightsSection { margin-top: 14px; }
 }
+

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import styles from './Screen3.module.css';
 import { DevControls, DEFAULT_PARAMS, initDevControls } from './DevControls';
 import { ChatPanel, initChatPanel } from './ChatPanel';
@@ -9,11 +9,11 @@ type Screen3Props = { devControlsEnabled?: boolean };
 export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const devControlsReadyRef = useRef<(() => void) | null>(null);
+  const [hasEntered, setHasEntered] = useState(false);
   const handleDevControlsReady = useCallback(() => {
     devControlsReadyRef.current?.();
   }, []);
 
-  // Ensure the page doesn't scroll while Screen3 is active
   useEffect(() => {
     const html = document.documentElement;
     const body = document.body;
@@ -25,6 +25,11 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
       html.style.overflowY = prevHtmlOverflow;
       body.style.overflowY = prevBodyOverflow;
     };
+  }, []);
+
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => setHasEntered(true));
+    return () => window.cancelAnimationFrame(id);
   }, []);
 
   useEffect(() => {
@@ -44,7 +49,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
     let W = 0, H = 0, lastT = performance.now();
     let panelOpen = false;
 
-    // Shared simulation parameters (mutated by dev controls when present)
     const params: Screen3Params = { ...DEFAULT_PARAMS };
 
     type ResizeOptions = { keepSeed?: boolean };
@@ -71,8 +75,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
     }
     const handleResize = () => resize();
 
-    // Dev controls (if markup exists) will mutate params and wire listeners
-    // The wiring itself is invoked later (after helper fns are defined) for clarity.
 
     const mouse = { x: null as number | null, y: null as number | null };
     vp.addEventListener('mousemove', (e) => { const r = vp.getBoundingClientRect(); mouse.x = (e.clientX - r.left) * DPR; mouse.y = (e.clientY - r.top) * DPR; });
@@ -110,7 +112,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
         continueBtn.classList.add('enabled');
       }
     };
-    // Custom chat icon (inline SVG) that fits design and supports animated dots
     function chatIconSvg() {
       return `
         <svg class=\"ci\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" aria-hidden=\"true\">
@@ -125,7 +126,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
         </svg>
       `;
     }
-    // Defaults, tuned to your screenshot
     const DEFAULT_CHAT_ICON_PX = 29;
     const DEFAULT_CHAT_PIN_PX = 36;
 
@@ -157,13 +157,12 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
       });
     }
     const AGENT_COLORS: Record<string, string> = {
-      // mapped from Screen2 persona palette
-      A1: '#9d8ed4', // Research → Visionary
-      A2: '#6ab59d', // Strategy → Pragmatist
-      A3: '#ff9d5c', // Design → Innovator
-      A4: '#7dd3c0', // Product → Mediator
-      A5: '#6ba3d4', // Engineer → Cautious
-      A6: '#ff6b6b', // Ops → Critic
+      A1: '#9d8ed4',
+      A2: '#6ab59d',
+      A3: '#ff9d5c',
+      A4: '#7dd3c0',
+      A5: '#6ba3d4',
+      A6: '#ff6b6b',
     };
     function darkenHexToRgba(hex: string, mul: number, alpha: number) { const { r, g, b } = hexToRgb(hex); const rr = Math.max(0, Math.min(255, Math.round(r * mul))); const gg = Math.max(0, Math.min(255, Math.round(g * mul))); const bb = Math.max(0, Math.min(255, Math.round(b * mul))); return `rgba(${rr},${gg},${bb},${alpha})`; }
     function mountAgents() {
@@ -172,7 +171,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
       AGENTS.forEach((a) => {
         const el = document.createElement('div'); el.className = 'agent'; el.innerHTML = '<div class="label"></div>';
         (el.querySelector('.label') as HTMLDivElement).textContent = a.name;
-        // Tint agent chip in the same style as chat pin
         const col = AGENT_COLORS[a.id] || '#8b7df0';
         el.style.background = hexToRgba(col, 0.22);
         el.style.borderColor = hexToRgba(col, 0.65);
@@ -185,7 +183,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
         agentsLayer.appendChild(el); agentEls.set(a.id, el);
         const pin = document.createElement('button'); pin.className = 'chatpin'; pin.textContent = '💬';
         const col2 = AGENT_COLORS[a.id] || '#8b7df0';
-        // Ensure emoji is replaced by our SVG icon immediately at creation
         try { pin.setAttribute('type', 'button'); pin.innerHTML = chatIconSvg(); tunePinSvg(pin); } catch {}
         pin.style.background = hexToRgba(col2, 0.28);
         pin.style.borderColor = hexToRgba(col2, 0.75);
@@ -203,7 +200,7 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
       for (let i = 0; i < AGENTS.length; i++) {
         const el = agentEls.get(AGENTS[i].id)!; const pin = chatPins.get(AGENTS[i].id)!; const p = anchors[i]; if (!el || !pin || !p) continue;
         const x = p.x / DPR, y = p.y / DPR; el.style.left = x + 'px'; el.style.top = y + 'px'; pin.style.left = x + 'px';
-        const pinSize = DEFAULT_CHAT_PIN_PX; // place above agent, but 10% lower than before
+        const pinSize = DEFAULT_CHAT_PIN_PX;
         pin.style.top = (y - (pinSize + 2) + pinSize * 0.10) + 'px';
       }
     }
@@ -216,8 +213,7 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
       .map((e, i) => ({ id: 'E' + (i + 1), from: e[0], to: e[1], seed: Math.random() }));
     let activeEdgeId: string | null = null, activeEdgeSince = 0;
     let lastActiveEdgeId: string | null = null;
-    // Ambient link shimmer state
-    let ambientAlpha = 1; // fades out when chat active
+    let ambientAlpha = 1;
     let ambientActive = new Set<string>();
     let ambientLastSwitch = 0;
 
@@ -236,7 +232,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
     });
     function openChatForAgent(agentId: string) {
       const e = edges.find((E) => E.from === agentId || E.to === agentId); if (!e) return;
-      // If the same conversation is already open, ignore repeated clicks
       if (panelOpen && activeEdgeId === e.id) return;
       const amap = currentAgentMap(); const edge = { id: e.id, from: amap.get(e.from)!, to: amap.get(e.to)! };
       chat.openChat(edge);
@@ -279,7 +274,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
 
     let rafId: number | null = null;
 
-    // Intro sequence state
     type IntroEdge = { fromId: string; toId: string; start: number; dur: number; resolve: () => void } | null;
     let introRunning = true;
     let introEdge: IntroEdge = null;
@@ -297,7 +291,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
       const dt = Math.min(0.033, (now - lastT) / 1000);
       lastT = now;
       if (activeEdgeId !== lastActiveEdgeId) { updatePinActivity(); lastActiveEdgeId = activeEdgeId; }
-      // Ensure chat pin/icon sizing is applied (cheap for <= 6 pins)
       applyChatPinSizing();
       drawBackground();
       spacingForces();
@@ -328,7 +321,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
       placeAgents(); updateAgentNodes();
       ectx.clearRect(0, 0, W, H); ectx.save(); ectx.globalCompositeOperation = isColorBlackish(params.LINK_COLOR) ? 'source-over' : 'lighter';
 
-      // During intro, draw only the animated link segment and a traveling orb
       if (introRunning) {
         if (introEdge) {
           const amap = currentAgentMap();
@@ -345,7 +337,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
             ectx.shadowBlur = baseGlow; ectx.shadowColor = params.LINK_COLOR; ectx.globalAlpha = 1;
             ectx.beginPath(); ectx.moveTo(A.x, A.y); ectx.lineTo(x, y); ectx.stroke();
 
-            // Moving orb on the segment
             ectx.save();
             const baseR = Math.max(2 * DPR, (params.LINK_ORB_SIZE || 3) * DPR);
             ectx.beginPath();
@@ -360,12 +351,11 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
         ectx.restore(); drawVignette(); rafId = requestAnimationFrame(tick); return;
       }
       const baseWidth = params.THICK_A * DPR * 0.7, baseGlow = params.GLOW_LINKS * DPR * 0.7; const pulse = activeEdgeId ? (0.5 + 0.5 * Math.sin((performance.now() - activeEdgeSince) / 260)) : 0; const amap = currentAgentMap();
-      // Update ambient shimmer state
       const targetAmb = activeEdgeId ? 0 : 1;
       ambientAlpha += (targetAmb - ambientAlpha) * Math.min(1, dt * 3);
       if (now - ambientLastSwitch > 2400) {
         ambientActive = new Set<string>();
-        const k = 1 + Math.floor(Math.random() * 3); // 1..3 edges
+        const k = 1 + Math.floor(Math.random() * 3);
         for (let i = 0; i < k; i++) {
           const pick = edges[Math.floor(Math.random() * edges.length)];
           if (pick) ambientActive.add(pick.id);
@@ -381,7 +371,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
         ectx.beginPath(); ectx.moveTo(A.x, A.y); ectx.lineTo(B.x, B.y); ectx.stroke();
 
         if (isActive) {
-          // Active edge orbs
           ectx.save();
           const scale = panelOpen ? 1.5 : 1.0; const baseR = (params.LINK_ORB_SIZE || 3) * DPR; const orbR = baseR * scale; const N = 10; const tNow = (performance.now() / 1600) % 1;
           for (let k = 0; k < N; k++) {
@@ -391,7 +380,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
           }
           ectx.restore();
         } else if (ambientAlpha > 0 && ambientActive.has(E.id)) {
-          // Ambient, subtle shimmer along non-active edges
           ectx.save();
           const baseR = Math.max(1.2 * DPR, (params.LINK_ORB_SIZE || 3) * DPR * 0.6);
           const tNow = (performance.now() / 2200 + (E.seed || 0)) % 1;
@@ -413,7 +401,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
     function hexToRgb(hex: string) { let h = hex.replace('#', ''); if (h.length === 3) { h = [h[0], h[0], h[1], h[1], h[2], h[2]].join(''); } const num = parseInt(h, 16); return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 }; }
     function hexToRgba(hex: string, a: number) { const { r, g, b } = hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
 
-    // Wire dev controls (if present) before first render to ensure initial UI values apply
     const wireDevControls = () => initDevControls(root, params, { reseedParticles, randomizeNodeSpacings });
     devControlsReadyRef.current = wireDevControls;
     wireDevControls();
@@ -425,10 +412,8 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
     rafId = requestAnimationFrame(tick);
     window.addEventListener('resize', handleResize);
 
-    // Orchestrated intro sequence: viewport fade, agents reveal, chained links, enable interactions
     (async () => {
       try {
-        // Viewport fade-in
         requestAnimationFrame(() => {
           vp.classList.add('intro-in');
           vp.classList.remove('intro-start');
@@ -437,7 +422,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
         resize({ keepSeed: true });
         await sleep(1000);
 
-        // Reveal agents one by one
         let agentDelay = 140;
         for (let i = 0; i < AGENTS.length; i++) {
           const el = agentEls.get(AGENTS[i].id);
@@ -450,7 +434,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
 
         await sleep(1500);
 
-        // Sequential links with chat pins appearing upon send/receive
         for (let i = 0; i < AGENTS.length - 1; i++) {
           const fromId = AGENTS[i].id; const toId = AGENTS[i + 1].id;
           const fromPin = chatPins.get(fromId);
@@ -462,7 +445,6 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
           await sleep(140);
         }
 
-        // Enable interactions and ambient edges
         introRunning = false;
         chatPins.forEach((pin) => { pin.disabled = false; pin.removeAttribute('aria-hidden'); pin.style.pointerEvents = 'auto'; });
       } catch {
@@ -479,8 +461,8 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
   }, []);
 
   return (
-    <div ref={rootRef} className={styles.root}>
-      {/* Floating background orbs (copied from Screen1) */}
+    <div ref={rootRef} className={`${styles.root} ${hasEntered ? styles.entered : ''}`}>
+
       <div className={`${styles.bgOrb} ${styles.orb1}`} />
       <div className={`${styles.bgOrb} ${styles.orb2}`} />
       <div className={`${styles.bgOrb} ${styles.orb3}`} />
@@ -494,10 +476,10 @@ export default function Screen3({ devControlsEnabled = false }: Screen3Props) {
           <canvas id="layer-edges" />
           <canvas id="layer-vignette" />
           <div id="agents" aria-hidden="false" />
-          {/* Chat is integrated inside the simulation viewport (left side) */}
+
           <ChatPanel />
         </div>
-        {/* Return Continue button to the original place (below viewport) */}
+
         <div className={styles.cta}><button id="continueBtn" className={styles.btn} disabled>Continue</button></div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from './Screen1.module.css';
 
 type Phase = 'gate' | 'intro' | 'main' | 'team';
@@ -9,6 +10,7 @@ export default function Screen1() {
   const introRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
   const teamRef = useRef<HTMLDivElement>(null);
+  const exitTimerRef = useRef<number | null>(null);
 
   const introLine1Ref = useRef<HTMLHeadingElement>(null);
   const introLine2Ref = useRef<HTMLParagraphElement>(null);
@@ -16,20 +18,20 @@ export default function Screen1() {
   const finalLine2Ref = useRef<HTMLParagraphElement>(null);
 
   const [phase, setPhase] = useState<Phase>('gate');
+  const [isExiting, setIsExiting] = useState(false);
+  const [hasEntered, setHasEntered] = useState(false);
+  const navigate = useNavigate();
 
-  // Selection state
   const [selectedProblem, setSelectedProblem] = useState<null | 'ER' | 'Bus'>(null);
   const [selectedInsights, setSelectedInsights] = useState<Set<string>>(() => new Set());
   const [showContinue, setShowContinue] = useState(false);
 
-  // Team assembly reveal state
   const [finalLine1Visible, setFinalLine1Visible] = useState(false);
   const [finalLine2Visible, setFinalLine2Visible] = useState(false);
   const [iconsVisibleCount, setIconsVisibleCount] = useState(0);
   const [finalBtnVisible, setFinalBtnVisible] = useState(false);
   const teamSeqLockRef = useRef(false);
 
-  // Helpers to read CSS vars (scoped to container)
   const css = () => getComputedStyle(containerRef.current || document.documentElement);
   const toMs = (v?: string) => {
     const s = (v ?? '').toString().trim();
@@ -45,6 +47,7 @@ export default function Screen1() {
   const PHASE_FADE = () => toMs(css().getPropertyValue('--phase-fade'));
   const ICON_DURATION = () => toMs(css().getPropertyValue('--icon-duration'));
   const FADE_DURATION = () => toMs(css().getPropertyValue('--fade-duration'));
+  const EXIT_DURATION = () => PHASE_FADE() || 600;
 
   const wait = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
   const onceTransitionEnd = (el: HTMLElement | null) =>
@@ -62,7 +65,6 @@ export default function Screen1() {
       el.addEventListener('transitionend', handler, { once: true });
     });
 
-  // Phase management using classList to allow fine-grain overlap
   const getPhaseEl = (p: Phase) => ({ gate: gateRef, intro: introRef, main: mainRef, team: teamRef }[p].current);
   const getActivePhaseEl = () => {
     const refs = [gateRef.current, introRef.current, mainRef.current, teamRef.current];
@@ -99,7 +101,6 @@ export default function Screen1() {
       await onceTransitionEnd(toEl || null);
     } else {
       if (toEl) {
-        // Force layout so visibility change takes effect with the active class applied
         void toEl.offsetHeight;
         toEl.style.visibility = 'visible';
       }
@@ -113,28 +114,22 @@ export default function Screen1() {
     setPhase(next);
   }
 
-  // Intro sequence (two lines, sequential)
   const startIntroSequence = async () => {
     if (introLine1Ref.current) introLine1Ref.current.classList.remove(styles.reveal);
     if (introLine2Ref.current) introLine2Ref.current.classList.remove(styles.reveal);
 
-    // line 1
     if (introLine1Ref.current) introLine1Ref.current.classList.add(styles.reveal);
     await wait(FADE_DURATION());
     await wait(READ_DELAY());
 
-    // line 2
     if (introLine2Ref.current) introLine2Ref.current.classList.add(styles.reveal);
     await wait(FADE_DURATION());
     await wait(READ_DELAY());
 
-    // Fade out intro fully, then show problem cards (main)
     await switchPhase('main', undefined, { delayBeforeNext: 300 });
-    // Hard-hide intro to avoid any residual overlap later
     if (introRef.current) introRef.current.style.display = 'none';
   };
 
-  // Reveal sequence for Team phase: title → subtitle → icons (staggered) → button
   useEffect(() => {
     const el = teamRef.current;
     if (!el) return;
@@ -146,27 +141,23 @@ export default function Screen1() {
       const RUN = nextRunId();
       if (teamSeqLockRef.current) return;
       teamSeqLockRef.current = true;
-      // Reset
       setFinalBtnVisible(false);
       setIconsVisibleCount(0);
       setFinalLine1Visible(false);
       setFinalLine2Visible(false);
 
-      // 1) Title
       setFinalLine1Visible(true);
       await wait(FADE_DURATION());
       if (RUN !== runIdRef.current) return;
       await wait(READ_DELAY());
       if (RUN !== runIdRef.current) return;
 
-      // 2) Subtitle
       setFinalLine2Visible(true);
       await wait(FADE_DURATION());
       if (RUN !== runIdRef.current) return;
       await wait(READ_DELAY());
       if (RUN !== runIdRef.current) return;
 
-      // 3) Icons stagger
       await wait(ICONS_AFTER_TEXT());
       if (RUN !== runIdRef.current) return;
       for (let i = 1; i <= 5; i++) {
@@ -175,41 +166,45 @@ export default function Screen1() {
         if (RUN !== runIdRef.current) return;
       }
 
-      // 4) After last icon pops, reveal the button
       await wait(ICON_DURATION());
       if (RUN !== runIdRef.current) return;
       setFinalBtnVisible(true);
       teamSeqLockRef.current = false;
     };
 
-    // Start if already active on mount
     if (el.classList.contains(styles.active)) run();
 
-    // Observe class changes to trigger when team phase activates
     const mo = new MutationObserver(() => {
       if (el.classList.contains(styles.active)) run();
-      else { nextRunId(); teamSeqLockRef.current = false; } // invalidate and unlock when deactivating
+      else { nextRunId(); teamSeqLockRef.current = false; }
     });
     mo.observe(el, { attributes: true, attributeFilter: ['class'] });
 
     return () => {
       mo.disconnect();
-      nextRunId(); // invalidate on cleanup to stop any in-flight sequence (StrictMode-safe)
+      nextRunId();
       teamSeqLockRef.current = false;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Removed legacy manual team sequence; handled by StrictMode-safe effect above
-
-  // Initial active phase class for Gate
   useEffect(() => {
     if (gateRef.current) {
       gateRef.current.classList.add(styles.active);
     }
   }, []);
 
-  // Continue button toggle condition
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => setHasEntered(true));
+    return () => window.cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => () => {
+    if (exitTimerRef.current != null) {
+      window.clearTimeout(exitTimerRef.current);
+    }
+  }, []);
+
   useEffect(() => {
     setShowContinue(Boolean(selectedProblem) && selectedInsights.size > 0);
   }, [selectedProblem, selectedInsights]);
@@ -231,21 +226,28 @@ export default function Screen1() {
     });
   };
 
+  const onAssembleTeam = () => {
+    if (isExiting) return;
+    setIsExiting(true);
+    const delay = EXIT_DURATION();
+    exitTimerRef.current = window.setTimeout(() => navigate('/screen2'), delay);
+  };
+
   return (
-    <div ref={containerRef} className={styles.root}>
-      {/* Background orbs */}
+    <div ref={containerRef} className={`${styles.root} ${hasEntered ? styles.entered : ''} ${isExiting ? styles.exiting : ''}`}>
+
       <div className={`${styles.bgOrb} ${styles.orb1}`} />
       <div className={`${styles.bgOrb} ${styles.orb2}`} />
       <div className={`${styles.bgOrb} ${styles.orb3}`} />
 
-      {/* Gate */}
+
       <div ref={gateRef} className={styles.phase}>
         <div className={styles.gateContent}>
           <button className={styles.btn} onClick={onStart}>Start Presentation</button>
         </div>
       </div>
 
-      {/* Intro */}
+
       <div ref={introRef} className={styles.phase}>
         <div className={styles.introContent}>
           <h1 ref={introLine1Ref} className={`${styles.introTitle} ${styles.fadeUp}`}>Collective intelligence, on your terms.</h1>
@@ -253,7 +255,7 @@ export default function Screen1() {
         </div>
       </div>
 
-      {/* Main */}
+
       <div ref={mainRef} className={`${styles.phase} ${styles.mainPhase}`}>
         <div className={styles.mainWrapper}>
           <div className={styles.mainContainer}>
@@ -263,7 +265,7 @@ export default function Screen1() {
             </div>
 
             <div className={styles.problemsGrid}>
-              {/* ER card */}
+
               <div
                 className={`${styles.problemCard} ${selectedProblem === 'ER' ? styles.problemCardSelected : ''}`}
                 onClick={() => setSelectedProblem('ER')}
@@ -278,7 +280,7 @@ export default function Screen1() {
                 <p className={styles.problemDesc}>Urban hospital faces peak-time bottlenecks. Patients wait too long, staff rotate poorly, beds don't free fast enough. We want near-term changes we can pilot without new budget.</p>
               </div>
 
-              {/* Bus card */}
+
               <div
                 className={`${styles.problemCard} ${selectedProblem === 'Bus' ? styles.problemCardSelected : ''}`}
                 onClick={() => setSelectedProblem('Bus')}
@@ -297,7 +299,7 @@ export default function Screen1() {
               </div>
             </div>
 
-            {/* Insights */}
+
             <div className={styles.insightsSection}>
               <div className={styles.sectionHeader}>
                 <h3 className={styles.sectionTitle}>What should the team focus on?</h3>
@@ -368,7 +370,7 @@ export default function Screen1() {
             </div>
           </div>
 
-          {/* Continue Button */}
+
           <div className={styles.continueSection}>
             <button
               className={`${styles.btn} ${styles.continueBtn} ${showContinue ? styles.show : ''}`}
@@ -381,7 +383,7 @@ export default function Screen1() {
         </div>
       </div>
 
-      {/* Team Assembly */}
+
       <div ref={teamRef} className={`${styles.phase} ${styles.teamPhase}`}>
         <div className={styles.assemblyContent}>
           <h2 className={`${styles.assemblyTitle} ${styles.fadeUp} ${finalLine1Visible ? styles.reveal : ''}`} ref={finalLine1Ref}>
@@ -440,7 +442,13 @@ export default function Screen1() {
             ))}
           </div>
 
-          <button className={`${styles.btn} ${styles.assembleBtn} ${finalBtnVisible ? styles.show : ''}`}>Assemble the Team</button>
+          <button
+            className={`${styles.btn} ${styles.assembleBtn} ${finalBtnVisible ? styles.show : ''}`}
+            onClick={onAssembleTeam}
+            disabled={isExiting}
+          >
+            Assemble the Team
+          </button>
         </div>
       </div>
     </div>

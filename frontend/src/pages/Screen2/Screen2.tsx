@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from './Screen2.module.css';
 
 
@@ -15,12 +16,11 @@ const TEAM_DATA: Agent[] = [
 
 export default function Screen2() {
   const rootRef = useRef<HTMLDivElement>(null);
+  const exitTimerRef = useRef<number | null>(null);
 
-  // Phase containers
   const phaseCreationRef = useRef<HTMLDivElement>(null);
   const phaseTeamRef = useRef<HTMLDivElement>(null);
 
-  // Creation phase refs
   const cardRef = useRef<HTMLDivElement>(null);
   const avatarRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +41,6 @@ export default function Screen2() {
 
   const nextBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Overlay + connectors
   const overlayRef = useRef<SVGSVGElement>(null);
   const leftPathRef = useRef<SVGPathElement>(null);
   const rightPathRef = useRef<SVGPathElement>(null);
@@ -50,17 +49,17 @@ export default function Screen2() {
   const dotRFromRef = useRef<HTMLDivElement>(null);
   const dotRToRef = useRef<HTMLDivElement>(null);
 
-  // Team phase refs
   const teamTitleRef = useRef<HTMLHeadingElement>(null);
   const startDiscussionBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Local state for team UI
   const [teamCardsShown, setTeamCardsShown] = useState(false);
   const abortRef = useRef(false);
   const runIdRef = useRef(0);
   const nextRunId = () => (++runIdRef.current);
+  const [isExiting, setIsExiting] = useState(false);
+  const [hasEntered, setHasEntered] = useState(false);
+  const navigate = useNavigate();
 
-  // Helpers to read CSS variables
   const css = () => getComputedStyle(rootRef.current || document.documentElement);
   const toMs = (v?: string) => {
     const s = (v ?? '').toString().trim();
@@ -70,8 +69,13 @@ export default function Screen2() {
     return isNaN(n) ? 0 : n;
   };
   const TYPE_SPEED = () => toMs(css().getPropertyValue('--type-speed')) || 50;
+  const EXIT_DURATION = () => toMs(css().getPropertyValue('--phase-fade')) || 600;
 
   const wait = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => setHasEntered(true));
+    return () => window.cancelAnimationFrame(id);
+  }, []);
 
   async function typeText(el: HTMLElement | null, text: string, spd?: number, runId?: number) {
     if (!el) return;
@@ -86,7 +90,6 @@ export default function Screen2() {
     }
   }
 
-  // Smooth height utilities
   type SmoothInfo = { h: number; k: number; min: number };
   const smoothItemsRef = useRef<HTMLElement[]>([]);
   function setupSmoothResize(target: HTMLElement | null, k = 0.18, overflowHidden = true, allowShrink = true) {
@@ -118,7 +121,6 @@ export default function Screen2() {
     smoothItemsRef.current = kept;
   }
 
-  // Geometry + overlay
   function sizeOverlay() {
     const svg = overlayRef.current;
     if (!svg) return;
@@ -187,12 +189,10 @@ export default function Screen2() {
     if (!pathEl) return;
     pathEl.setAttribute('d', sPath(fromPoint, toPoint));
     const L = pathLength(pathEl);
-    // reset
     pathEl.style.transition = 'none';
     pathEl.style.strokeDasharray = `${L}`;
     pathEl.style.strokeDashoffset = `${L}`;
     void pathEl.getBoundingClientRect();
-    // animate
     pathEl.style.opacity = '1';
     pathEl.style.transition = `opacity var(--fade) var(--ease), stroke-dashoffset var(--line) var(--ease)`;
     pathEl.style.strokeDashoffset = '0';
@@ -202,9 +202,7 @@ export default function Screen2() {
     });
   }
 
-  // Switch phases (A -> B)
   const switchToTeamPhase = async () => {
-    // Fade connectors along with Phase A fade out
     if (leftPathRef.current) leftPathRef.current.style.opacity = '0';
     if (rightPathRef.current) rightPathRef.current.style.opacity = '0';
     [dotLFromRef.current, dotLToRef.current, dotRFromRef.current, dotRToRef.current].forEach((d) => {
@@ -215,17 +213,15 @@ export default function Screen2() {
     stopTicker();
     if (overlayRef.current) overlayRef.current.style.display = 'none';
 
-    // Team phase in
     if (phaseTeamRef.current) phaseTeamRef.current.classList.add(styles.active);
     if (teamTitleRef.current) teamTitleRef.current.classList.add(styles.show);
     await wait(200);
 
-    setTeamCardsShown(true); // reveal with stagger via inline delays
+    setTeamCardsShown(true);
     await wait(1500);
     if (startDiscussionBtnRef.current) startDiscussionBtnRef.current.classList.add(styles.show);
   };
 
-  // Init sequence mirrors the prototype timings and steps
   useEffect(() => {
     let resizeTimer: number | undefined;
     let scrollTimer: number | undefined;
@@ -264,7 +260,6 @@ export default function Screen2() {
 
       try { if ((document as any).fonts) await (document as any).fonts.ready; } catch {}
 
-      // Seed path styles
       if (leftPathRef.current) {
         leftPathRef.current.style.opacity = '0';
         leftPathRef.current.style.strokeDasharray = '1';
@@ -276,7 +271,6 @@ export default function Screen2() {
         rightPathRef.current.style.strokeDashoffset = '1';
       }
 
-      // Sequence A (Finance -> left callout)
       await wait(220);
       if (abortRef.current || RUN !== runIdRef.current) return;
       await typeText(roleRef.current, 'Finance', undefined, RUN);
@@ -299,7 +293,6 @@ export default function Screen2() {
       if (callout1Ref.current) callout1Ref.current.classList.add(styles.show);
       await typeText(callout1TextRef.current, 'The system picks specialists most likely involved in solving this challenge.', 18, RUN);
 
-      // Sequence B (Critic -> right callout)
       await wait(420);
       if (abortRef.current || RUN !== runIdRef.current) return;
       await typeText(personalityRef.current, 'Critic', 56, RUN);
@@ -322,7 +315,6 @@ export default function Screen2() {
       if (callout2Ref.current) callout2Ref.current.classList.add(styles.show);
       await typeText(callout2TextRef.current, 'We add different mindsets to keep the team balanced.', 18, RUN);
 
-      // Show Continue button
       await wait(300);
       if (abortRef.current || RUN !== runIdRef.current) return;
       if (nextBtnRef.current) nextBtnRef.current.classList.add(styles.show);
@@ -351,23 +343,29 @@ export default function Screen2() {
 
     return () => {
       abortRef.current = true;
-      runIdRef.current++; // invalidate any in-flight typing loops
+      runIdRef.current++;
       stopTicker();
       ro?.disconnect();
       releaseSmoothResize();
       window.removeEventListener('resize', onResize);
       window.removeEventListener('scroll', onScroll as any);
+      if (exitTimerRef.current != null) {
+        window.clearTimeout(exitTimerRef.current);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onStartDiscussion = () => {
-    alert('Proceeding to Screen 3: Team Discussion Network...');
+    if (isExiting) return;
+    setIsExiting(true);
+    const delay = EXIT_DURATION();
+    exitTimerRef.current = window.setTimeout(() => navigate('/screen3'), delay);
   };
 
   return (
-    <div ref={rootRef} className={styles.root}>
-      {/* Overlay SVG + dots */}
+    <div ref={rootRef} className={`${styles.root} ${hasEntered ? styles.entered : ''} ${isExiting ? styles.exiting : ''}`}>
+
       <svg ref={overlayRef} className={styles.overlay} width="100%" height="100%">
         <path ref={leftPathRef} className={styles.overlayPath} />
         <path ref={rightPathRef} className={styles.overlayPath} />
@@ -378,7 +376,7 @@ export default function Screen2() {
       <div ref={dotRFromRef} className={`${styles.dot}`}></div>
       <div ref={dotRToRef}   className={`${styles.dot}`}></div>
 
-      {/* Phase A: Agent Creation */}
+
       <div ref={phaseCreationRef} className={`${styles.phase} ${styles.active}`}>
         <div className={styles.wrap}>
           <div ref={cardRef} className={`${styles.card}`}>
@@ -412,7 +410,7 @@ export default function Screen2() {
         </div>
       </div>
 
-      {/* Phase B: Team Reveal */}
+
       <div ref={phaseTeamRef} className={styles.phase}>
         <div className={styles.teamContainer}>
           <h2 ref={teamTitleRef} className={styles.teamTitle}>Your specialist team is ready</h2>
@@ -436,7 +434,12 @@ export default function Screen2() {
             ))}
           </div>
 
-          <button ref={startDiscussionBtnRef} className={styles.btn} onClick={onStartDiscussion}>
+          <button
+            ref={startDiscussionBtnRef}
+            className={styles.btn}
+            onClick={onStartDiscussion}
+            disabled={isExiting}
+          >
             Start Discussion
           </button>
         </div>

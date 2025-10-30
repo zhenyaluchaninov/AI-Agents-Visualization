@@ -1,6 +1,6 @@
-/* Root scope with design tokens matching prototype */
+
 .root {
-  /* Timings & easing */
+  
   --type-speed: 50ms;
   --fade: .65s;
   --line: 1.2s;
@@ -13,7 +13,7 @@
   --ease-phase: cubic-bezier(.42, 0, .58, 1);
   --ease-overshoot: cubic-bezier(.34, 1.56, .64, 1);
 
-  /* Colors */
+  
   --lead:#d5d7df;
   --lead-strong:#bcc0cb;
   --text:#2d2d3a; 
@@ -24,7 +24,7 @@
   --primary-light:#a298f2; 
   --primary-dark:#7165d8;
 
-  /* Agent personality colors */
+  
   --color-innovator:#ff9d5c;
   --color-critic:#ff6b6b;
   --color-cautious:#6ba3d4;
@@ -32,7 +32,7 @@
   --color-pragmatist:#6ab59d;
   --color-mediator:#7dd3c0;
 
-  /* Shadows */
+  
   --shadow-sm:0 2px 8px rgba(0,0,0,.04);
   --shadow-md:0 8px 24px rgba(0,0,0,.06);
   --shadow-lg:0 16px 48px rgba(0,0,0,.08);
@@ -45,13 +45,25 @@
   color:var(--text);
   background:radial-gradient(1000px 600px at 60% 20%, #e9e6ff 0%, #f7f6fb 40%, #faf9fc 70%);
   overflow-x:hidden;
+  overflow-y:hidden;
+  opacity:0;
+  transition:opacity var(--phase-fade) var(--ease-phase), transform var(--phase-fade) var(--ease-phase);
 }
 
-/* Local reset to match prototype and stabilize smooth height math */
+
 .root, .root * { box-sizing: border-box; }
 .root * { margin: 0; padding: 0; }
 
-/* Phase crossfade */
+.entered {
+  opacity:1;
+}
+
+.exiting {
+  opacity:0;
+  pointer-events:none;
+}
+
+
 .phase{
   position:absolute;
   inset:0;
@@ -65,7 +77,7 @@
 }
 .active{opacity:1; pointer-events:auto}
 
-/* === PHASE A: Agent Creation === */
+
 .wrap{position:relative; width:min(620px,92vw)}
 
 .card{
@@ -139,7 +151,7 @@
 }
 .show.btn{opacity:1; transform:translateY(0) scale(1)}
 
-/* === PHASE B: Team Reveal === */
+
 .teamContainer{
   text-align:center;
   max-width:900px;
@@ -217,7 +229,7 @@
   color:var(--text-muted);
 }
 
-/* Agent personality backgrounds */
+
 .personality-innovator{background:linear-gradient(135deg,var(--color-innovator),#ffb380); box-shadow: var(--shadow-sm), 0 10px 24px rgba(255,157,92,.35);}
 .personality-critic{background:linear-gradient(135deg,var(--color-critic),#ff8888); box-shadow: var(--shadow-sm), 0 10px 24px rgba(255,107,107,.35);}
 .personality-cautious{background:linear-gradient(135deg,var(--color-cautious),#8bb8e0); box-shadow: var(--shadow-sm), 0 10px 24px rgba(107,163,212,.32);}
@@ -230,3 +242,4 @@
   .teamGrid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px}
   .btn{padding:16px 36px; font-size:15px}
 }
+

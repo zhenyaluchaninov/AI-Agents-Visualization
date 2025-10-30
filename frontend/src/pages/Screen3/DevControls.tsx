@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 
-// no styles imported here
 
 export interface Screen3Params {
   MAX: number;
@@ -56,15 +55,12 @@ export const DEFAULT_PARAMS: Screen3Params = {
   LIFELESS: false,
 };
 
-// (randomize color utilities were removed)
 
 type InitOptions = {
   reseedParticles: (n: number) => void;
   randomizeNodeSpacings: () => void;
 };
 
-// Reads UI values if #controls exists, syncs spans, and wires listeners to mutate params.
-// Returns true if controls were found and wired.
 export function initDevControls(root: HTMLElement, params: Screen3Params, opts: InitOptions): boolean {
   const qs = <T extends HTMLElement = HTMLElement>(id: string) => root.querySelector<T>(`#${id}`);
   const hasControls = !!root.querySelector('#controls');
@@ -81,7 +77,7 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
       if (!vpEl || !ctrlEl) return;
       const rootRect = root.getBoundingClientRect();
       const vpRect = vpEl.getBoundingClientRect();
-      const width = 320; // fixed width for stability
+      const width = 320;
       const gap = 12;
       const left = Math.max(12, Math.round((vpRect.left - rootRect.left) - width - gap));
       const top = Math.round(vpRect.top - rootRect.top);
@@ -96,7 +92,7 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
         overflowY: 'auto',
         zIndex: '20',
       } as Partial<CSSStyleDeclaration>);
-    } catch { /* noop */ }
+    } catch {}
   }
 
   const ui = {
@@ -148,12 +144,10 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
     attrRVal: qs<HTMLSpanElement>('attrRVal')!,
     linkColorVal: qs<HTMLSpanElement>('linkColorVal')!,
   } as const;
-  // Guard against unexpected DOM mismatches
   for (const k of Object.keys(ui) as (keyof typeof ui)[]) {
     if (!ui[k]) return false;
   }
 
-  // Load saved defaults from localStorage and apply to UI before reading values
   function loadSavedDefaults(): Partial<Screen3Params> | null {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -190,7 +184,6 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
   const savedDefaults = loadSavedDefaults();
   if (savedDefaults) applyDefaultsToUI(savedDefaults);
 
-  // Apply initial values from UI
   params.MAX = parseInt(ui.nodes.value, 10);
   params.LINK_DIST = parseInt(ui.link.value, 10);
   params.P_SPEED = parseInt(ui.pspeed.value, 10) / 100;
@@ -268,12 +261,10 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
   ui.vigStrength.addEventListener('input', () => { params.VIG_STRENGTH = parseInt(ui.vigStrength.value, 10) / 100; ui.vigStrengthVal.textContent = params.VIG_STRENGTH.toFixed(2); });
 
   sync();
-  // Position panel to the left of the viewport and keep it aligned on resize
   positionPanel();
   requestAnimationFrame(positionPanel);
   window.addEventListener('resize', positionPanel);
 
-  // Defaults utilities: save/clear/copy current params
   function currentParamsToCode(p: Screen3Params) {
     const esc = (s: string) => s;
     const lines = [

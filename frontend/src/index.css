@@ -1,4 +1,4 @@
-/* Minimal global baseline, no dark theme. */
+
 :root {
   line-height: 1.5;
   font-weight: 400;
@@ -15,11 +15,12 @@ html, body, #root {
 
 body {
   margin: 0;
-  background: #ffffff; /* ensure white background behind the screen */
+  background: #ffffff; 
   color: #2d2d3a;
   min-width: 320px;
 }
 
 a { color: inherit; text-decoration: none; }
 h1, h2, h3, h4 { margin: 0; }
+
 

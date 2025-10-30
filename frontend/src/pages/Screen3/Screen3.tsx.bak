@@ -26,7 +26,6 @@ export default function Screen3() {
     let W = 0, H = 0, lastT = performance.now();
     let panelOpen = false;
 
-    // Shared simulation parameters (mutated by dev controls when present)
     const params: Screen3Params = { ...DEFAULT_PARAMS };
 
     function resize() {
@@ -42,8 +41,6 @@ export default function Screen3() {
       placeAgents();
     }
 
-    // Dev controls (if markup exists) will mutate params and wire listeners
-    // The wiring itself is invoked later (after helper fns are defined) for clarity.
 
     const mouse = { x: null as number | null, y: null as number | null };
     vp.addEventListener('mousemove', (e) => { const r = vp.getBoundingClientRect(); mouse.x = (e.clientX - r.left) * DPR; mouse.y = (e.clientY - r.top) * DPR; });
@@ -68,13 +65,12 @@ export default function Screen3() {
     const agentEls = new Map<string, HTMLDivElement>();
     const chatPins = new Map<string, HTMLButtonElement>();
     const AGENT_COLORS: Record<string, string> = {
-      // mapped from Screen2 persona palette
-      A1: '#9d8ed4', // Research → Visionary
-      A2: '#6ab59d', // Strategy → Pragmatist
-      A3: '#ff9d5c', // Design → Innovator
-      A4: '#7dd3c0', // Product → Mediator
-      A5: '#6ba3d4', // Engineer → Cautious
-      A6: '#ff6b6b', // Ops → Critic
+      A1: '#9d8ed4',
+      A2: '#6ab59d',
+      A3: '#ff9d5c',
+      A4: '#7dd3c0',
+      A5: '#6ba3d4',
+      A6: '#ff6b6b',
     };
     function mountAgents() {
       agentsLayer.innerHTML = '';
@@ -82,7 +78,6 @@ export default function Screen3() {
       AGENTS.forEach((a) => {
         const el = document.createElement('div'); el.className = 'agent'; el.innerHTML = '<div class="label"></div>';
         (el.querySelector('.label') as HTMLDivElement).textContent = a.name;
-        // Tint agent chip in the same style as chat pin
         const col = AGENT_COLORS[a.id] || '#8b7df0';
         el.style.background = hexToRgba(col, 0.22);
         el.style.borderColor = hexToRgba(col, 0.65);
@@ -111,8 +106,7 @@ export default function Screen3() {
     const edges = [['A1', 'A3'], ['A1', 'A4'], ['A2', 'A5'], ['A2', 'A6'], ['A3', 'A5'], ['A4', 'A6'], ['A5', 'A6']]
       .map((e, i) => ({ id: 'E' + (i + 1), from: e[0], to: e[1], seed: Math.random() }));
     let activeEdgeId: string | null = null, activeEdgeSince = 0;
-    // Ambient link shimmer state
-    let ambientAlpha = 1; // fades out when chat active
+    let ambientAlpha = 1;
     let ambientActive = new Set<string>();
     let ambientLastSwitch = 0;
 
@@ -198,12 +192,11 @@ export default function Screen3() {
       placeAgents(); updateAgentNodes();
       ectx.clearRect(0, 0, W, H); ectx.save(); ectx.globalCompositeOperation = isColorBlackish(params.LINK_COLOR) ? 'source-over' : 'lighter';
       const baseWidth = params.THICK_A * DPR * 0.7, baseGlow = params.GLOW_LINKS * DPR * 0.7; const pulse = activeEdgeId ? (0.5 + 0.5 * Math.sin((performance.now() - activeEdgeSince) / 260)) : 0; const amap = currentAgentMap();
-      // Update ambient shimmer state
       const targetAmb = activeEdgeId ? 0 : 1;
       ambientAlpha += (targetAmb - ambientAlpha) * Math.min(1, dt * 3);
       if (now - ambientLastSwitch > 2400) {
         ambientActive = new Set<string>();
-        const k = 1 + Math.floor(Math.random() * 3); // 1..3 edges
+        const k = 1 + Math.floor(Math.random() * 3);
         for (let i = 0; i < k; i++) {
           const pick = edges[Math.floor(Math.random() * edges.length)];
           if (pick) ambientActive.add(pick.id);
@@ -219,7 +212,6 @@ export default function Screen3() {
         ectx.beginPath(); ectx.moveTo(A.x, A.y); ectx.lineTo(B.x, B.y); ectx.stroke();
 
         if (isActive) {
-          // Active edge orbs
           ectx.save();
           const scale = panelOpen ? 1.5 : 1.0; const baseR = (params.LINK_ORB_SIZE || 3) * DPR; const orbR = baseR * scale; const N = 10; const tNow = (performance.now() / 1600) % 1;
           for (let k = 0; k < N; k++) {
@@ -229,7 +221,6 @@ export default function Screen3() {
           }
           ectx.restore();
         } else if (ambientAlpha > 0 && ambientActive.has(E.id)) {
-          // Ambient, subtle shimmer along non-active edges
           ectx.save();
           const baseR = Math.max(1.2 * DPR, (params.LINK_ORB_SIZE || 3) * DPR * 0.6);
           const tNow = (performance.now() / 2200 + (E.seed || 0)) % 1;
@@ -251,7 +242,6 @@ export default function Screen3() {
     function hexToRgb(hex: string) { let h = hex.replace('#', ''); if (h.length === 3) { h = [h[0], h[0], h[1], h[1], h[2], h[2]].join(''); } const num = parseInt(h, 16); return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 }; }
     function hexToRgba(hex: string, a: number) { const { r, g, b } = hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
 
-    // Wire dev controls (if present) before first render to ensure initial UI values apply
     initDevControls(root, params, { reseedParticles, randomizeNodeSpacings });
 
     mountAgents();
@@ -268,7 +258,7 @@ export default function Screen3() {
 
   return (
     <div ref={rootRef} className={styles.root}>
-      {/* Floating background orbs (copied from Screen1) */}
+
       <div className={`${styles.bgOrb} ${styles.orb1}`} />
       <div className={`${styles.bgOrb} ${styles.orb2}`} />
       <div className={`${styles.bgOrb} ${styles.orb3}`} />
@@ -291,5 +281,6 @@ export default function Screen3() {
     </div>
   );
 }
+
 
 

@@ -24,7 +24,6 @@ export function initChatPanel(
   const closePanel = qs<HTMLButtonElement>('closePanel');
   const continueBtn = qs<HTMLButtonElement>('continueBtn');
 
-  // If expected nodes are missing, provide no-op API to avoid runtime errors
   if (!panel || !panelBody || !closePanel || !continueBtn) {
     return {
       openChat: (_edge: ChatEdgeCtx) => {},
@@ -41,7 +40,6 @@ export function initChatPanel(
     panel.setAttribute('aria-hidden', 'true');
     opts.onActivateEdge?.(null);
     opts.onOpenChange?.(false);
-    // cleanup content and timers
     timers.forEach((t) => clearTimeout(t));
     timers = [];
     if (panelBody) panelBody.innerHTML = '';
@@ -51,7 +49,6 @@ export function initChatPanel(
   const closeListener = () => handleClose();
   closePanel.addEventListener('click', closeListener);
 
-  // Map agent names to project palette (mirrors Screen2/Screen3 colors)
   const NAME_COLORS: Record<string, string> = {
     Research: '#9d8ed4',
     Strategy: '#6ab59d',
@@ -84,11 +81,9 @@ export function initChatPanel(
     return `rgba(${r},${g},${b},${alpha})`;
   }
   const openChat = (edge: ChatEdgeCtx) => {
-    // idempotent reopen for the same edge while panel is already open
     if (panel.classList.contains('open') && lastEdgeId === edge.id) {
       return;
     }
-    // cleanup previous timers / typing
     timers.forEach((t) => clearTimeout(t));
     timers = [];
     if (!unlockedCTA) {
@@ -96,11 +91,9 @@ export function initChatPanel(
       continueBtn.classList.add('enabled');
       continueBtn.disabled = false;
     }
-    // Reset content
     panelBody.innerHTML = '';
     if (participants) participants.innerHTML = '';
 
-    // Header: participants chips only (no title text)
     const fromColor = NAME_COLORS[edge.from.name] || '#8b7df0';
     const toColor = NAME_COLORS[edge.to.name] || '#8b7df0';
     if (participants) {

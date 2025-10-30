@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import Screen1 from './pages/Screen1/Screen1';
 import Screen2 from './pages/Screen2/Screen2';
@@ -9,10 +9,24 @@ import Insights from './pages/Insights';
 import Scenarios from './pages/Scenarios';
 
 export default function App() {
-  // TEMPORARY DEBUG NAV — remove later
-  const [debugScreen, setDebugScreen] = useState<null | 'screen1' | 'screen2' | 'screen3'>(null);
   const [debugOpen, setDebugOpen] = useState(true);
   const [screen3DevControls, setScreen3DevControls] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const goTo = (screen: 'screen1' | 'screen2' | 'screen3') => {
+    const path = screen === 'screen1' ? '/' : screen === 'screen2' ? '/screen2' : '/screen3';
+    navigate(path);
+  };
+  const buttonStyle = (active: boolean) => ({
+    background: 'none',
+    border: 'none',
+    color: active ? '#111' : '#333',
+    textAlign: 'left' as const,
+    cursor: 'pointer',
+    padding: 0,
+    fontWeight: active ? 700 : 500
+  });
 
   const debugNav = (
     <div
@@ -40,9 +54,9 @@ export default function App() {
       {debugOpen && (
         <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <button onClick={() => setDebugScreen('screen1')} style={{ background: 'none', border: 'none', color: '#333', textAlign: 'left', cursor: 'pointer', padding: 0 }}>Screen_1</button>
-            <button onClick={() => setDebugScreen('screen2')} style={{ background: 'none', border: 'none', color: '#333', textAlign: 'left', cursor: 'pointer', padding: 0 }}>Screen_2</button>
-            <button onClick={() => setDebugScreen('screen3')} style={{ background: 'none', border: 'none', color: '#333', textAlign: 'left', cursor: 'pointer', padding: 0 }}>Screen_3</button>
+            <button onClick={() => goTo('screen1')} style={buttonStyle(location.pathname === '/')}>Screen_1</button>
+            <button onClick={() => goTo('screen2')} style={buttonStyle(location.pathname === '/screen2')}>Screen_2</button>
+            <button onClick={() => goTo('screen3')} style={buttonStyle(location.pathname === '/screen3')}>Screen_3</button>
           </div>
           <div style={{ height: 1, background: 'rgba(0,0,0,.06)', margin: '6px 0' }} />
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
@@ -54,38 +68,13 @@ export default function App() {
     </div>
   );
 
-  // When a debug screen is selected, render it directly and bypass router
-  if (debugScreen === 'screen1') {
-    return (
-      <>
-        {debugNav}
-        <Screen1 />
-      </>
-    );
-  }
-  if (debugScreen === 'screen2') {
-    return (
-      <>
-        {debugNav}
-        <Screen2 />
-      </>
-    );
-  }
-  if (debugScreen === 'screen3') {
-    return (
-      <>
-        {debugNav}
-        <Screen3 devControlsEnabled={screen3DevControls} />
-      </>
-    );
-  }
-
-  // Default: normal routing
   return (
     <>
       {debugNav}
       <Routes>
         <Route path="/" element={<Screen1 />} />
+        <Route path="/screen2" element={<Screen2 />} />
+        <Route path="/screen3" element={<Screen3 devControlsEnabled={screen3DevControls} />} />
         <Route path="/team" element={<Team />} />
         <Route path="/discussion" element={<Discussion />} />
         <Route path="/insights" element={<Insights />} />
