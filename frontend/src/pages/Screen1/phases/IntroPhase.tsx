@@ -1,107 +1,64 @@
-import { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import type { Screen1Animations } from '../animations';
 import styles from '../Screen1.module.css';
-import type { Screen1Timings } from '../types';
-
-const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 interface IntroPhaseProps {
-  isActive: boolean;
-  timings: Pick<Screen1Timings, 'fadeDuration' | 'readDelay'>;
+  animations: Screen1Animations;
+  entryDelay: number;
   onComplete: () => Promise<void> | void;
 }
 
-export const IntroPhase = ({ isActive, timings, onComplete }: IntroPhaseProps) => {
-  const [titleVisible, setTitleVisible] = useState(false);
-  const [subtitleVisible, setSubtitleVisible] = useState(false);
-  const [titleExiting, setTitleExiting] = useState(false);
-  const [subtitleExiting, setSubtitleExiting] = useState(false);
-  const runRef = useRef(0);
-  const exitRunRef = useRef(0);
-
-  useEffect(() => {
-    if (!isActive) return;
-
-    exitRunRef.current += 1;
-
-    const runId = ++runRef.current;
-    setTitleExiting(false);
-    setSubtitleExiting(false);
-
-    const run = async () => {
-      setTitleVisible(false);
-      setSubtitleVisible(false);
-
-      await wait(16);
-      if (runRef.current !== runId) return;
-
-      setTitleVisible(true);
-      await wait(timings.fadeDuration);
-      if (runRef.current !== runId) return;
-
-      await wait(timings.readDelay);
-      if (runRef.current !== runId) return;
-
-      setSubtitleVisible(true);
-      await wait(timings.fadeDuration);
-      if (runRef.current !== runId) return;
-
-      await wait(timings.readDelay);
-      if (runRef.current !== runId) return;
-
-      await onComplete();
-    };
-
-    run();
-
-    return () => {
-      runRef.current += 1;
-    };
-  }, [isActive, timings.fadeDuration, timings.readDelay, onComplete]);
-
-  useEffect(() => {
-    if (isActive) return;
-
-    runRef.current += 1;
-    const shouldExit = titleVisible || subtitleVisible;
-    if (!shouldExit) return;
-
-    const exitId = ++exitRunRef.current;
-    setTitleExiting(true);
-    setSubtitleExiting(true);
-
-    const handle = window.setTimeout(() => {
-      if (exitRunRef.current !== exitId) return;
-      setTitleVisible(false);
-      setSubtitleVisible(false);
-      setTitleExiting(false);
-      setSubtitleExiting(false);
-    }, timings.fadeDuration);
-
-    return () => {
-      exitRunRef.current += 1;
-      window.clearTimeout(handle);
-    };
-  }, [isActive, timings.fadeDuration, titleVisible, subtitleVisible]);
+export const IntroPhase = ({ animations, entryDelay, onComplete }: IntroPhaseProps) => {
+  const contentDelay = entryDelay + animations.meta.intro.startDelay;
 
   return (
-    <div className={`${styles.phase} ${isActive ? styles.active : ''}`}>
-      <div className={styles.introContent}>
-        <h1
-          className={`${styles.introTitle} ${styles.fadeUp} ${titleVisible ? styles.reveal : ''} ${
-            titleExiting ? styles.fadeExit : ''
-          }`}
+    <motion.section
+      className={styles.phase}
+      variants={animations.variants.phaseContainer}
+      custom={{ delay: entryDelay }}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
+      <motion.div
+        className={styles.introContent}
+        variants={animations.variants.intro.content}
+        custom={{ delay: contentDelay }}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+      >
+        <motion.h1
+          className={styles.introTitle}
+          variants={animations.variants.intro.text}
+          custom={{ delay: contentDelay }}
         >
           Collective intelligence, on your terms.
-        </h1>
-        <p
-          className={`${styles.introSubtitle} ${styles.fadeUp} ${subtitleVisible ? styles.reveal : ''} ${
-            subtitleExiting ? styles.fadeExit : ''
-          }`}
+        </motion.h1>
+        <motion.p
+          className={styles.introSubtitle}
+          variants={animations.variants.intro.text}
+          custom={{ delay: contentDelay + animations.meta.intro.stagger }}
         >
           Different minds. One challenge.
-        </p>
-      </div>
-    </div>
+        </motion.p>
+      </motion.div>
+
+      <motion.span
+        aria-hidden
+        style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
+        variants={animations.variants.intro.progress}
+        custom={{ delay: contentDelay }}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        onAnimationComplete={(definition) => {
+          if (definition === 'animate') {
+            onComplete();
+          }
+        }}
+      />
+    </motion.section>
   );
 };
 

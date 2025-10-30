@@ -1,47 +1,93 @@
+import { motion } from 'framer-motion';
+import type { Screen1Animations } from '../animations';
 import styles from '../Screen1.module.css';
 import { AgentIcon } from '../ui/AgentIcon';
 import { TEAM_ICONS } from '../constants';
-import type { TeamSequenceState } from '../types';
 
 interface TeamPhaseProps {
-  isActive: boolean;
-  sequence: TeamSequenceState;
+  animations: Screen1Animations;
+  entryDelay: number;
   onAssembleTeam: () => void;
   ctaDisabled: boolean;
 }
 
-export const TeamPhase = ({ isActive, sequence, onAssembleTeam, ctaDisabled }: TeamPhaseProps) => (
-  <div className={`${styles.phase} ${styles.teamPhase} ${isActive ? styles.active : ''}`}>
-    <div className={styles.assemblyContent}>
-      <h2 className={`${styles.assemblyTitle} ${styles.fadeUp} ${sequence.headlineVisible ? styles.reveal : ''}`}>
-        Let's examine this from different angles.
-      </h2>
-      <p className={`${styles.assemblySubtitle} ${styles.fadeUp} ${sequence.sublineVisible ? styles.reveal : ''}`}>
-        We'll gather specialists with diverse perspectives.
-      </p>
+export const TeamPhase = ({ animations, entryDelay, onAssembleTeam, ctaDisabled }: TeamPhaseProps) => {
+  const iconDelay = entryDelay + animations.meta.team.iconStartDelay;
+  const ctaDelay = entryDelay + animations.meta.team.ctaDelay;
+  const subtitleDelay = entryDelay + animations.meta.team.textStagger;
 
-      <div className={styles.agentIcons}>
-        {TEAM_ICONS.map(({ gradient, glow, icon: Icon }, index) => (
-          <div
-            key={`${glow}-${index}`}
-            className={`${styles.iconBounce} ${index < sequence.visibleIcons ? styles.reveal : ''}`}
-          >
-            <AgentIcon className={styles.agentCircle} gradient={gradient} glow={glow}>
-              <Icon className={styles.agentSvg} />
-            </AgentIcon>
-          </div>
-        ))}
-      </div>
-
-      <button
-        className={`${styles.btn} ${styles.assembleBtn} ${sequence.ctaVisible ? styles.show : ''}`}
-        onClick={onAssembleTeam}
-        disabled={ctaDisabled}
+  return (
+    <motion.section
+      className={`${styles.phase} ${styles.teamPhase}`}
+      variants={animations.variants.phaseContainer}
+      custom={{ delay: entryDelay }}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
+      <motion.div
+        className={styles.assemblyContent}
+        variants={animations.variants.team.content}
+        custom={{ delay: entryDelay }}
+        initial="initial"
+        animate="animate"
+        exit="exit"
       >
-        Assemble the Team
-      </button>
-    </div>
-  </div>
-);
+        <motion.div variants={animations.variants.team.textGroup} initial="initial" animate="animate" exit="exit">
+          <motion.h2
+            className={styles.assemblyTitle}
+            variants={animations.variants.team.text}
+            custom={{ delay: entryDelay }}
+          >
+            Let's examine this from different angles.
+          </motion.h2>
+          <motion.p
+            className={styles.assemblySubtitle}
+            variants={animations.variants.team.text}
+            custom={{ delay: subtitleDelay }}
+          >
+            We'll gather specialists with diverse perspectives.
+          </motion.p>
+        </motion.div>
+
+        <motion.div
+          className={styles.agentIcons}
+          variants={animations.variants.team.iconGroup}
+          custom={{ delay: iconDelay }}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+        >
+          {TEAM_ICONS.map(({ gradient, glow, icon: Icon }, index) => (
+            <motion.div
+              key={`${glow}-${index}`}
+              className={styles.iconBounce}
+              variants={animations.variants.team.icon}
+              custom={{ delay: iconDelay + index * animations.meta.team.iconStagger }}
+            >
+              <AgentIcon className={styles.agentCircle} gradient={gradient} glow={glow}>
+                <Icon className={styles.agentSvg} />
+              </AgentIcon>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        <motion.button
+          type="button"
+          className={`${styles.btn} ${styles.assembleBtn}`}
+          variants={animations.variants.team.cta}
+          custom={{ delay: ctaDelay }}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          onClick={onAssembleTeam}
+          disabled={ctaDisabled}
+        >
+          Assemble the Team
+        </motion.button>
+      </motion.div>
+    </motion.section>
+  );
+};
 
 export default TeamPhase;

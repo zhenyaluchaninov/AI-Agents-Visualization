@@ -1,13 +1,11 @@
 export { default } from './Screen1';
 export { usePhaseMachine } from './hooks/usePhaseMachine';
-export { useTeamSequence } from './hooks/useTeamSequence';
 export type {
   Phase,
   ProblemId,
   InsightId,
   Screen1Timings,
   PhaseTransitionOptions,
-  TeamSequenceState,
 } from './types';
 export {
   readScreen1Timings,

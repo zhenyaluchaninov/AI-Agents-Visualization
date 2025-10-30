@@ -77,12 +77,13 @@
 
 
 .phase {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0; pointer-events: none;
-  transition: opacity var(--phase-fade) var(--ease-phase);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
 }
-.active { opacity: 1; pointer-events: auto; }
 
 
 .fadeUp { opacity: 0; transform: translateY(24px); }

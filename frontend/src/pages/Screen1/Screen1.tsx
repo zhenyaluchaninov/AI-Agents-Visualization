@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import styles from './Screen1.module.css';
 import { GatePhase } from './phases/GatePhase';
@@ -6,7 +7,7 @@ import { IntroPhase } from './phases/IntroPhase';
 import { MainPhase } from './phases/MainPhase';
 import { TeamPhase } from './phases/TeamPhase';
 import { usePhaseMachine } from './hooks/usePhaseMachine';
-import { useTeamSequence } from './hooks/useTeamSequence';
+import { createScreen1Animations } from './animations';
 import {
   MAIN_PHASE_DELAY_BEFORE_NEXT,
   readScreen1Timings,
@@ -16,10 +17,10 @@ import type { InsightId, ProblemId, Screen1Timings } from './types';
 export default function Screen1() {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
-  const exitTimerRef = useRef<number | null>(null);
+  const exitFallbackRef = useRef<number | null>(null);
+  const hasNavigatedRef = useRef(false);
 
   const [timings, setTimings] = useState<Screen1Timings>(() => readScreen1Timings());
-  const [hasEntered, setHasEntered] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [selectedProblem, setSelectedProblem] = useState<ProblemId | null>(null);
   const [selectedInsights, setSelectedInsights] = useState<Set<InsightId>>(() => new Set());
@@ -30,22 +31,17 @@ export default function Screen1() {
     }
   }, []);
 
-  useEffect(() => {
-    const id = window.requestAnimationFrame(() => setHasEntered(true));
-    return () => window.cancelAnimationFrame(id);
-  }, []);
-
   useEffect(
     () => () => {
-      if (exitTimerRef.current != null) {
-        window.clearTimeout(exitTimerRef.current);
+      if (exitFallbackRef.current != null) {
+        window.clearTimeout(exitFallbackRef.current);
       }
     },
     []
   );
 
-  const { phase, transitionTo, isPhaseActive } = usePhaseMachine({ initialPhase: 'gate', timings });
-  const teamSequence = useTeamSequence({ phase, timings });
+  const animations = useMemo(() => createScreen1Animations(timings), [timings]);
+  const { phase, entryDelay, transitionTo } = usePhaseMachine({ initialPhase: 'gate' });
 
   const showContinue = selectedProblem !== null && selectedInsights.size > 0;
 
@@ -77,44 +73,86 @@ export default function Screen1() {
 
   const handleContinue = useCallback(() => transitionTo('team'), [transitionTo]);
 
+  const navigateToNext = useCallback(() => {
+    if (hasNavigatedRef.current) return;
+    hasNavigatedRef.current = true;
+
+    if (exitFallbackRef.current != null) {
+      window.clearTimeout(exitFallbackRef.current);
+      exitFallbackRef.current = null;
+    }
+    navigate('/screen2');
+  }, [navigate]);
+
   const handleAssembleTeam = useCallback(() => {
     if (isExiting) return;
 
     setIsExiting(true);
-    const exitDelay = timings.phaseFade || timings.exitFallback;
-    exitTimerRef.current = window.setTimeout(() => navigate('/screen2'), exitDelay);
-  }, [isExiting, navigate, timings.phaseFade, timings.exitFallback]);
+    exitFallbackRef.current = window.setTimeout(navigateToNext, timings.exitFallback);
+  }, [isExiting, navigateToNext, timings.exitFallback]);
+
+  const handleRootAnimationComplete = useCallback(
+    (definition: string) => {
+      if (definition === 'exit' && isExiting) {
+        navigateToNext();
+      }
+    },
+    [isExiting, navigateToNext]
+  );
 
   return (
-    <div
+    <motion.div
       ref={containerRef}
-      className={`${styles.root} ${hasEntered ? styles.entered : ''} ${isExiting ? styles.exiting : ''}`}
+      className={styles.root}
+      variants={animations.variants.root}
+      initial="initial"
+      animate={isExiting ? 'exit' : 'enter'}
+      onAnimationComplete={handleRootAnimationComplete}
     >
       <div className={`${styles.bgOrb} ${styles.orb1}`} />
       <div className={`${styles.bgOrb} ${styles.orb2}`} />
       <div className={`${styles.bgOrb} ${styles.orb3}`} />
 
-      <GatePhase isActive={isPhaseActive('gate')} onStart={handleStart} />
-      <IntroPhase
-        isActive={isPhaseActive('intro')}
-        timings={{ fadeDuration: timings.fadeDuration, readDelay: timings.readDelay }}
-        onComplete={handleIntroComplete}
-      />
-      <MainPhase
-        isActive={isPhaseActive('main')}
-        selectedProblem={selectedProblem}
-        onSelectProblem={handleSelectProblem}
-        selectedInsights={selectedInsights}
-        onToggleInsight={toggleInsight}
-        showContinue={showContinue}
-        onContinue={handleContinue}
-      />
-      <TeamPhase
-        isActive={isPhaseActive('team')}
-        sequence={teamSequence}
-        onAssembleTeam={handleAssembleTeam}
-        ctaDisabled={isExiting}
-      />
-    </div>
+      <AnimatePresence mode="wait">
+        {phase === 'gate' && (
+          <GatePhase
+            key="gate"
+            animations={animations}
+            entryDelay={entryDelay}
+            onStart={handleStart}
+          />
+        )}
+        {phase === 'intro' && (
+          <IntroPhase
+            key="intro"
+            animations={animations}
+            entryDelay={entryDelay}
+            onComplete={handleIntroComplete}
+          />
+        )}
+        {phase === 'main' && (
+          <MainPhase
+            key="main"
+            animations={animations}
+            entryDelay={entryDelay}
+            selectedProblem={selectedProblem}
+            onSelectProblem={handleSelectProblem}
+            selectedInsights={selectedInsights}
+            onToggleInsight={toggleInsight}
+            showContinue={showContinue}
+            onContinue={handleContinue}
+          />
+        )}
+        {phase === 'team' && (
+          <TeamPhase
+            key="team"
+            animations={animations}
+            entryDelay={entryDelay}
+            onAssembleTeam={handleAssembleTeam}
+            ctaDisabled={isExiting}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

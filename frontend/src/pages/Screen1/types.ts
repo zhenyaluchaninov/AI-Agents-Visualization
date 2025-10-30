@@ -6,12 +6,9 @@ export type InsightId = 'perspectives' | 'tensions' | 'opportunities' | 'blindsp
 
 export type GlowTone = 'glowGold' | 'glowPink' | 'glowGreen' | 'glowPurple' | 'glowBlue';
 
-export type PhaseVisibilityMap = Record<Phase, boolean>;
-
 export interface PhaseTransitionOptions {
   overlapStartMs?: number;
   delayBeforeNext?: number;
-  onShown?: () => void;
 }
 
 export interface Screen1Timings {
@@ -24,11 +21,4 @@ export interface Screen1Timings {
   introOverlap: number;
   exitFallback: number;
   iconStaggerBuffer: number;
-}
-
-export interface TeamSequenceState {
-  headlineVisible: boolean;
-  sublineVisible: boolean;
-  visibleIcons: number;
-  ctaVisible: boolean;
 }
