@@ -88,6 +88,8 @@
 .fadeUp { opacity: 0; transform: translateY(24px); }
 .reveal.fadeUp { animation: fadeUp var(--fade-duration) var(--ease-text-out) both; }
 @keyframes fadeUp { to { opacity: 1; transform: translateY(0) } }
+.fadeExit { animation: fadeOut var(--fade-duration) var(--ease-text-out) forwards; }
+@keyframes fadeOut { to { opacity: 0; transform: translateY(-12px); } }
 
 .iconBounce { opacity: 0; transform: translateY(20px) scale(.9); }
 .reveal.iconBounce { animation: iconBounce var(--icon-duration) var(--ease-overshoot) both; }
@@ -122,6 +124,12 @@
 }
 .btn:hover { transform: translateY(-3px); box-shadow: var(--shadow-xl), 0 0 100px rgba(139,125,240,.3); }
 .btn:hover::before { left: 100%; }
+.btn:disabled {
+  background: linear-gradient(135deg,#d1d1d8,#c4c6cf);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+  cursor: default;
+}
 
 
 .gateContent { text-align: center; }
@@ -266,9 +274,21 @@
 .insightDesc { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; margin-top: -2px; }
 
 
-.continueSection { text-align: center; min-height: 52px; margin-top: 0; }
-.continueBtn { opacity: 0; transform: translateY(16px); }
-.show.continueBtn { animation: btnUp var(--btn-duration) var(--ease-btn) both; }
+.continueSection {
+  width: 100%;
+  text-align: center;
+  margin-top: 22px;
+  padding-bottom: 12px;
+}
+.continueBtn {
+  transform: translateY(6px);
+  opacity: .6;
+  transition: transform .35s var(--ease-btn), opacity .35s var(--ease-btn);
+}
+.continueBtnEnabled {
+  transform: translateY(0);
+  opacity: 1;
+}
 @keyframes btnUp { to { opacity: 1; transform: translateY(0) } }
 
 
