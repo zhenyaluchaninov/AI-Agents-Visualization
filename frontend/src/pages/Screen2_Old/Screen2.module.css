@@ -9,7 +9,7 @@
   --btn-in: .8s;
   --phase-fade: .6s;
   --stagger: .5s;
-  --ease: cubic-bezier(.42,0,.58,1);
+  --ease: cubic-bezier(.25,.1,.25,1);
   --ease-phase: cubic-bezier(.42, 0, .58, 1);
   --ease-overshoot: cubic-bezier(.34, 1.56, .64, 1);
 
@@ -83,7 +83,6 @@
 .card{
   position:relative; background:var(--card); border-radius:24px; border:1px solid #fff;
   padding:56px 56px 76px; text-align:center; box-shadow:0 16px 48px rgba(0,0,0,.08);
-  min-height:320px;
   opacity:0; transform:translateY(28px) scale(.94);
   transition:
     transform var(--panel-in) var(--ease),
@@ -141,7 +140,6 @@
 .show.dot{opacity:1}
 
 .cta{margin-top:36px; text-align:center}
-.cta{min-height:64px}
 .btn{
   padding:16px 40px;border:none;border-radius:999px;color:#fff;cursor:pointer;
   background:linear-gradient(135deg,#8b7df0,#a298f2); box-shadow:0 14px 32px rgba(139,125,240,.35);
@@ -241,7 +239,6 @@
 
 @media (max-width:768px){
   .card{padding:32px}
-  .card{min-height:280px}
   .teamGrid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px}
   .btn{padding:16px 36px; font-size:15px}
 }
