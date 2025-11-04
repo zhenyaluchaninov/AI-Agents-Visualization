@@ -5,6 +5,7 @@ import styles from './Screen2.module.css';
 import { usePhaseMachine } from './hooks/usePhaseMachine';
 import IntroPhase from './phases/IntroPhase';
 import TeamPhase from './phases/TeamPhase';
+import { MOTION } from './constants';
 
 export default function Screen2() {
   const { phase, goTeam } = usePhaseMachine('intro');
@@ -21,13 +22,8 @@ export default function Screen2() {
   const onStartDiscussion = () => {
     if (isExiting) return;
     setIsExiting(true);
-    const root = document.documentElement;
-    const computed = getComputedStyle(root);
-    const fade = computed.getPropertyValue('--phase-fade') || '.6s';
-    const ms = fade.trim().endsWith('ms')
-      ? parseFloat(fade)
-      : parseFloat(fade) * 1000;
-    exitTimerRef.current = window.setTimeout(() => navigate('/screen3'), ms || 600);
+    const ms = MOTION.PHASE_FADE * 1000;
+    exitTimerRef.current = window.setTimeout(() => navigate('/screen3'), ms);
   };
 
   return (

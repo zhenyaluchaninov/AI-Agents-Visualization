@@ -1,17 +1,11 @@
 
 .root {
   
-  --type-speed: 50ms;
-  --fade: .65s;
-  --line: 1.2s;
-  --panel-in: .9s;
-  --avatar-in: .7s;
-  --btn-in: .8s;
   --phase-fade: .6s;
-  --stagger: .5s;
-  --ease: cubic-bezier(.42,0,.58,1);
   --ease-phase: cubic-bezier(.42, 0, .58, 1);
-  --ease-overshoot: cubic-bezier(.34, 1.56, .64, 1);
+  --line: .8s;
+  --fade: .65s;
+  --ease: cubic-bezier(.36, 0, .6, .99);
 
   
   --lead:#d5d7df;
@@ -84,23 +78,14 @@
   position:relative; background:var(--card); border-radius:24px; border:1px solid #fff;
   padding:56px 56px 76px; text-align:center; box-shadow:0 16px 48px rgba(0,0,0,.08);
   min-height:320px;
-  opacity:0; transform:translateY(28px) scale(.94);
-  transition:
-    transform var(--panel-in) var(--ease),
-    opacity   var(--panel-in) var(--ease);
   will-change: height;
 }
-.show.card{opacity:1; transform:translateY(0) scale(1)}
 
 .avatar{
   width:80px;height:80px;border-radius:50%;margin:0 auto 22px;display:grid;place-items:center;
   background:linear-gradient(135deg,#ff6b6b,#ff8f8f); box-shadow:0 10px 24px rgba(255,127,127,.35);
-  opacity:0; transform:translateY(12px) scale(.92);
-  transition:
-    transform var(--avatar-in) var(--ease),
-    opacity   var(--avatar-in) var(--ease);
 }
-.show.avatar{opacity:1; transform:translateY(0) scale(1)}
+
 .avatarSvg{width:40px;height:40px}
 
 .titleWrap{ position:relative; display:block; width:fit-content; margin:0 auto; }
@@ -112,9 +97,9 @@
 .pinCritic{ left:120%; top:calc(100% - 10px); }
 
 .callout{
-  position:absolute; max-width:260px; opacity:0; transition:opacity var(--fade) var(--ease);
+  position:absolute; max-width:260px; opacity:0;
 }
-.show.callout{opacity:1}
+
 .left{left:-160px; top:70px}
 .right{right:-160px; top:70px}
 .calloutBox{
@@ -128,30 +113,49 @@
 .overlayPath{
   fill:none; stroke:var(--lead); stroke-width:2; stroke-linecap:round;
   opacity:0;
-  transition:
-    opacity var(--fade) var(--ease),
-    stroke-dashoffset var(--line) var(--ease);
 }
 
 .dot{
   position:fixed; width:8px; height:8px; border-radius:50%; background:var(--lead);
   box-shadow:0 0 0 2px rgba(255,255,255,.95);
-  transform:translate(-50%,-50%); z-index:1001; opacity:0; transition:opacity var(--fade) var(--ease);
+  transform:translate(-50%,-50%); z-index:1001; opacity:0;
 }
-.show.dot{opacity:1}
 
 .cta{margin-top:36px; text-align:center}
 .cta{min-height:64px}
 .btn{
-  padding:16px 40px;border:none;border-radius:999px;color:#fff;cursor:pointer;
-  background:linear-gradient(135deg,#8b7df0,#a298f2); box-shadow:0 14px 32px rgba(139,125,240,.35);
-  font-size:18px; font-weight:600; letter-spacing:.2px;
-  opacity:0; transform:translateY(16px) scale(.98);
-  transition:
-    transform var(--btn-in) var(--ease),
-    opacity   var(--btn-in) var(--ease);
+  padding:16px 40px;
+  border:none;
+  border-radius:999px;
+  color:#fff;
+  cursor:pointer;
+  background:linear-gradient(135deg,#8b7df0,#a298f2);
+  box-shadow:0 14px 32px rgba(139,125,240,.35);
+  font-size:18px;
+  font-weight:600;
+  letter-spacing:.2px;
+  position:relative;
+  overflow:hidden;
 }
-.show.btn{opacity:1; transform:translateY(0) scale(1)}
+
+.btn::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.32),transparent);
+  transform:translateX(-120%);
+  transition:transform .8s var(--ease-phase);
+}
+
+@media (hover:hover){
+  .btn:hover::before{transform:translateX(120%);}
+}
+
+.btn:focus-visible{
+  outline:2px solid rgba(139,125,240,.65);
+  outline-offset:3px;
+}
+
 
 
 .teamContainer{
@@ -169,13 +173,7 @@
   background-clip:text;
   -webkit-text-fill-color:transparent;
   margin-bottom:48px;
-  opacity:0;
-  transform:translateY(20px);
 }
-.show.teamTitle{
-  animation:fadeUp .6s var(--ease) both;
-}
-@keyframes fadeUp{to{opacity:1; transform:translateY(0)}}
 
 .teamGrid{
   display:grid;
@@ -190,24 +188,9 @@
   border-radius:20px;
   padding:24px;
   text-align:center;
-  transition: all .4s var(--ease);
   box-shadow:var(--shadow-sm);
-  opacity:0;
-  transform:translateY(20px) scale(0.95);
 }
-.show.agentCard{
-  animation:cardReveal .5s var(--ease-overshoot) both;
-}
-@keyframes cardReveal{
-  to{
-    opacity:1;
-    transform:translateY(0) scale(1);
-  }
-}
-.agentCard:hover{
-  transform:translateY(-4px);
-  box-shadow:var(--shadow-lg);
-}
+
 
 .agentIcon{
   width:56px;

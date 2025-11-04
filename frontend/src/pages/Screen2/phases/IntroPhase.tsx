@@ -1,29 +1,22 @@
+﻿// IntroPhase.tsx
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import styles from '../Screen2.module.css';
 import Typewriter from '../ui/Typewriter';
 import Avatar from '../ui/Avatar';
 import OverlayConnector from '../ui/OverlayConnector';
-import { variants } from '../animations';
 import { useSmoothResize } from '../hooks/useSmoothResize';
+import { EASE, MOTION, SEQ, TYPEWRITER } from '../constants';
+import { getVariants } from '../animations';
 
 type Props = {
   onContinue(): void;
 };
 
 export default function IntroPhase({ onContinue }: Props) {
-  // Timings (ms) — adjust as needed
-  const CARD_MOUNT_DELAY_MS = 0;
-  const PANEL_IN_DURATION_MS = 100;
-  const PANEL_FADE_DELAY_MS = 50;
-  const PANEL_MOVE_DELAY_MS = 50;
-  const AVATAR_IN_DURATION_MS = 70;
-  const ROLE_TYPE_DELAY_MS = 600;
-  // Button timings (ms)
-  const BTN_MOUNT_DELAY_MS = 0;
-  const BTN_IN_DURATION_MS = 100;
-  const BTN_FADE_DELAY_MS = 0;
-  const BTN_MOVE_DELAY_MS = 0;
+  const reducedMotion = useReducedMotion() ?? false;
+  const variants = getVariants(reducedMotion);
+ 
   const cardRef = useRef<HTMLDivElement>(null);
   const rolePinRef = useRef<HTMLSpanElement>(null);
   const criticPinRef = useRef<HTMLSpanElement>(null);
@@ -68,29 +61,34 @@ export default function IntroPhase({ onContinue }: Props) {
     active: callout2Typing,
   });
 
+  // ÐœÐ¾Ð½Ñ‚Ð¸Ñ€ÑƒÐµÐ¼ ÐºÐ°Ñ€Ñ‚Ð¾Ñ‡ÐºÑƒ
   useEffect(() => {
-    const id = window.setTimeout(() => setCardVisible(true), CARD_MOUNT_DELAY_MS);
+    const id = window.setTimeout(() => setCardVisible(true), SEQ.INTRO.CARD_MOUNT_DELAY * 1000);
     return () => window.clearTimeout(id);
   }, []);
 
-  // Start typing only after panel animation (fade+move) has finished
+  // Ð¡Ñ‚Ð°Ñ€Ñ‚ Ð¿ÐµÑ‡Ð°Ñ‚Ð¸ Ñ€Ð¾Ð»Ð¸ â€” Ñ‚Ð¾Ð»ÑŒÐºÐ¾ ÐŸÐžÐ¡Ð›Ð• Ñ‚Ð¾Ð³Ð¾, ÐºÐ°Ðº Ð¿Ð°Ð½ÐµÐ»ÑŒ (fade+move) Ð·Ð°Ð²ÐµÑ€ÑˆÐ¸Ð»Ð°ÑÑŒ
   useEffect(() => {
     if (!cardVisible) return;
-    const panelFinish = Math.max(PANEL_FADE_DELAY_MS, PANEL_MOVE_DELAY_MS) + PANEL_IN_DURATION_MS;
-    const id = window.setTimeout(() => setRoleTyping(true), panelFinish + ROLE_TYPE_DELAY_MS);
+    // Ð³Ð°Ñ€Ð°Ð½Ñ‚Ð¸Ñ: Ð±ÐµÑ€ÐµÐ¼ max Ð¿Ð¾ Ð·Ð°Ð´ÐµÑ€Ð¶ÐºÐ°Ð¼ + Ð´Ð»Ð¸Ñ‚ÐµÐ»ÑŒÐ½Ð¾ÑÑ‚ÑŒ
+    const panelFinishMs = (Math.max(MOTION.PANEL_FADE_DELAY, MOTION.PANEL_MOVE_DELAY) + MOTION.PANEL_IN) * 1000;
+    const id = window.setTimeout(
+      () => setRoleTyping(true),
+      panelFinishMs + SEQ.INTRO.ROLE_TYPE_DELAY * 1000,
+    );
     return () => window.clearTimeout(id);
   }, [cardVisible]);
 
+  // ÐŸÐ¾ÑÐ»Ðµ Ð¿ÐµÑ‡Ð°Ñ‚Ð¸ Ñ€Ð¾Ð»Ð¸ â€” Ð»ÐµÐ²Ñ‹Ð¹ ÐºÐ¾Ð½Ð½ÐµÐºÑ‚Ð¾Ñ€
   useEffect(() => {
     if (!roleDone) return;
     const timers: number[] = [];
     setLeftCardDot(true);
-    timers.push(window.setTimeout(() => setLeftLineActive(true), 220));
-    return () => {
-      timers.forEach((id) => window.clearTimeout(id));
-    };
+    timers.push(window.setTimeout(() => setLeftLineActive(true), SEQ.INTRO.LEFT_LINE_ARM_DELAY * 1000));
+    return () => { timers.forEach(window.clearTimeout); };
   }, [roleDone]);
 
+  // ÐŸÐ¾ÑÐ»Ðµ Ð·Ð°Ð²ÐµÑ€ÑˆÐµÐ½Ð¸Ñ Ð»ÐµÐ²Ð¾Ð¹ Ð»Ð¸Ð½Ð¸Ð¸ â€” Ð¿Ð¾ÐºÐ°Ð· Ð¸ Ð¿ÐµÑ‡Ð°Ñ‚ÑŒ Ð»ÐµÐ²Ð¾Ð³Ð¾ ÐºÐ¾Ð»Ð»Ð°ÑƒÑ‚Ð°
   useEffect(() => {
     if (!leftLineDone) return;
     const timers: number[] = [];
@@ -99,29 +97,28 @@ export default function IntroPhase({ onContinue }: Props) {
       window.setTimeout(() => {
         setCallout1Visible(true);
         setCallout1Typing(true);
-      }, 160),
+      }, SEQ.INTRO.CALLOUT1_SHOW_DELAY * 1000),
     );
-    return () => {
-      timers.forEach((id) => window.clearTimeout(id));
-    };
+    return () => { timers.forEach(window.clearTimeout); };
   }, [leftLineDone]);
 
+  // ÐŸÐ¾ÑÐ»Ðµ Ð»ÐµÐ²Ð¾Ð³Ð¾ ÐºÐ¾Ð»Ð»Ð°ÑƒÑ‚Ð° â€” Ð¿ÐµÑ‡Ð°Ñ‚ÑŒ Ð²Ñ‚Ð¾Ñ€Ð¾Ð¹ ÑÑ‚Ñ€Ð¾ÐºÐ¸ (Critic)
   useEffect(() => {
     if (!callout1Done) return;
-    const id = window.setTimeout(() => setCriticTyping(true), 420);
+    const id = window.setTimeout(() => setCriticTyping(true), SEQ.INTRO.PERSONALITY_TYPE_DELAY * 1000);
     return () => window.clearTimeout(id);
   }, [callout1Done]);
 
+  // ÐŸÐ¾ÑÐ»Ðµ Critic â€” Ð¿Ñ€Ð°Ð²Ñ‹Ð¹ ÐºÐ¾Ð½Ð½ÐµÐºÑ‚Ð¾Ñ€
   useEffect(() => {
     if (!criticDone) return;
     const timers: number[] = [];
     setRightCardDot(true);
-    timers.push(window.setTimeout(() => setRightLineActive(true), 220));
-    return () => {
-      timers.forEach((id) => window.clearTimeout(id));
-    };
+    timers.push(window.setTimeout(() => setRightLineActive(true), SEQ.INTRO.RIGHT_LINE_ARM_DELAY * 1000));
+    return () => { timers.forEach(window.clearTimeout); };
   }, [criticDone]);
 
+  // ÐŸÐ¾ÑÐ»Ðµ Ð·Ð°Ð²ÐµÑ€ÑˆÐµÐ½Ð¸Ñ Ð¿Ñ€Ð°Ð²Ð¾Ð¹ Ð»Ð¸Ð½Ð¸Ð¸ â€” Ð¿Ñ€Ð°Ð²Ñ‹Ð¹ ÐºÐ¾Ð»Ð»Ð°ÑƒÑ‚
   useEffect(() => {
     if (!rightLineDone) return;
     const timers: number[] = [];
@@ -130,32 +127,23 @@ export default function IntroPhase({ onContinue }: Props) {
       window.setTimeout(() => {
         setCallout2Visible(true);
         setCallout2Typing(true);
-      }, 160),
+      }, SEQ.INTRO.CALLOUT2_SHOW_DELAY * 1000),
     );
-    return () => {
-      timers.forEach((id) => window.clearTimeout(id));
-    };
+    return () => { timers.forEach(window.clearTimeout); };
   }, [rightLineDone]);
 
+  // ÐŸÐ¾ÑÐ»Ðµ Ð¿Ñ€Ð°Ð²Ð¾Ð³Ð¾ ÐºÐ¾Ð»Ð»Ð°ÑƒÑ‚Ð° â€” Ð¼Ð¾Ð½Ñ‚Ð¸Ñ€ÑƒÐµÐ¼ ÐºÐ½Ð¾Ð¿ÐºÑƒ Ð¸ Ð¾Ñ‚Ð¿ÑƒÑÐºÐ°ÐµÐ¼ Ñ€ÐµÐ·Ð°Ð¹Ð·ÐµÑ€Ñ‹
   useEffect(() => {
     if (!callout2Done) return;
     const timers: number[] = [];
-    // Button timings (ms) — tune these like panel timings
-    const BTN_MOUNT_DELAY_MS = 300;
-    const BTN_IN_DURATION_MS = 800;
-    const BTN_FADE_DELAY_MS = 0;
-    const BTN_MOVE_DELAY_MS = 0;
-
-    timers.push(window.setTimeout(() => setBtnVisible(true), BTN_MOUNT_DELAY_MS));
+    timers.push(window.setTimeout(() => setBtnVisible(true), SEQ.INTRO.BTN_MOUNT_DELAY * 1000));
     timers.push(
       window.setTimeout(() => {
         releaseCallout1();
         releaseCallout2();
-      }, 650),
+      }, SEQ.INTRO.SMOOTH_RESIZE_RELEASE_DELAY * 1000),
     );
-    return () => {
-      timers.forEach((id) => window.clearTimeout(id));
-    };
+    return () => { timers.forEach(window.clearTimeout); };
   }, [callout2Done, releaseCallout1, releaseCallout2]);
 
   const handleRoleDone = useCallback(() => setRoleDone(true), []);
@@ -172,22 +160,26 @@ export default function IntroPhase({ onContinue }: Props) {
           <motion.div
             ref={cardRef}
             className={styles.card}
-            initial={{ opacity: 0, y: 28, scale: 0.94 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
+            variants={variants.panelIn}
+            initial="hidden"
+            animate="visible"
             transition={{
-              opacity: { delay: PANEL_FADE_DELAY_MS / 1000, duration: PANEL_IN_DURATION_MS / 1000, ease: 'easeInOut' },
-              y: { delay: PANEL_MOVE_DELAY_MS / 1000, duration: PANEL_IN_DURATION_MS / 1000, ease: 'easeInOut' },
-              scale: { delay: PANEL_MOVE_DELAY_MS / 1000, duration: PANEL_IN_DURATION_MS / 1000, ease: 'easeInOut' },
+              // ÑÐ¸Ð½Ñ…Ñ€Ð¾Ð½Ð½Ñ‹Ð¹ ÑÑ‚Ð°Ñ€Ñ‚ fade+move+scale Ñ‡ÐµÑ€ÐµÐ· Ð¾Ð´Ð¸Ð½Ð°ÐºÐ¾Ð²Ñ‹Ðµ Ð·Ð°Ð´ÐµÑ€Ð¶ÐºÐ¸
+              opacity: { delay: MOTION.PANEL_FADE_DELAY, duration: MOTION.PANEL_IN, ease: EASE.DEFAULT },
+              y: { delay: MOTION.PANEL_MOVE_DELAY, duration: MOTION.PANEL_IN, ease: EASE.DEFAULT },
+              scale: { delay: MOTION.PANEL_MOVE_DELAY, duration: MOTION.PANEL_IN, ease: EASE.DEFAULT },
             }}
           >
             <motion.div
               className={styles.avatar}
-              initial={{ opacity: 0, y: 12, scale: 0.92 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
+              variants={variants.avatarIn}
+              initial="hidden"
+              animate="visible"
               transition={{
-                opacity: { delay: PANEL_FADE_DELAY_MS / 1000, duration: AVATAR_IN_DURATION_MS / 1000, ease: 'easeInOut' },
-                y: { delay: PANEL_MOVE_DELAY_MS / 1000, duration: AVATAR_IN_DURATION_MS / 1000, ease: 'easeInOut' },
-                scale: { delay: PANEL_MOVE_DELAY_MS / 1000, duration: AVATAR_IN_DURATION_MS / 1000, ease: 'easeInOut' },
+                // Ð°Ð²Ð°Ñ‚Ð°Ñ€ ÐµÐ´ÐµÑ‚ ÑÐ¸Ð½Ñ…Ñ€Ð¾Ð½Ð½Ð¾ Ñ Ð¿Ð°Ð½ÐµÐ»ÑŒÑŽ
+                opacity: { delay: MOTION.PANEL_FADE_DELAY, duration: MOTION.AVATAR_IN, ease: EASE.DEFAULT },
+                y: { delay: MOTION.PANEL_MOVE_DELAY, duration: MOTION.AVATAR_IN, ease: EASE.DEFAULT },
+                scale: { delay: MOTION.PANEL_MOVE_DELAY, duration: MOTION.AVATAR_IN, ease: EASE.DEFAULT },
               }}
             >
               <Avatar />
@@ -198,49 +190,58 @@ export default function IntroPhase({ onContinue }: Props) {
                 text="Finance"
                 as="span"
                 className={styles.role}
+                speedMs={TYPEWRITER.INTRO.ROLE_MS}
                 active={roleTyping}
                 onTypingEnd={handleRoleDone}
               />
               <span ref={rolePinRef} className={`${styles.anchorPin} ${styles.pinRole}`} aria-hidden="true"></span>
             </div>
+
             <div className={styles.titleWrap} style={{ marginTop: 8 }}>
               <Typewriter
                 text="Critic"
                 as="span"
                 className={styles.personality}
-                speedMs={56}
+                speedMs={TYPEWRITER.INTRO.PERSONALITY_MS}
                 active={criticTyping}
                 onTypingEnd={handleCriticDone}
               />
               <span ref={criticPinRef} className={`${styles.anchorPin} ${styles.pinCritic}`} aria-hidden="true"></span>
             </div>
 
-            <div
+            <motion.div
               ref={callout1Ref}
-              className={`${styles.callout} ${styles.left} ${callout1Visible ? styles.show : ''}`}
+              className={`${styles.callout} ${styles.left}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: callout1Visible ? 1 : 0 }}
+              transition={{ duration: (MOTION.FADE), ease: EASE.DEFAULT }}
             >
               <div ref={callout1BoxRef} className={styles.calloutBox}>
                 <Typewriter
                   text="The system picks specialists most likely involved in solving this challenge."
-                  speedMs={18}
+                  speedMs={reducedMotion ? 0 : TYPEWRITER.INTRO.CALLOUT_MS}
                   active={callout1Typing}
                   onTypingEnd={handleCallout1Done}
                 />
               </div>
-            </div>
-            <div
+            </motion.div>
+
+            <motion.div
               ref={callout2Ref}
-              className={`${styles.callout} ${styles.right} ${callout2Visible ? styles.show : ''}`}
+              className={`${styles.callout} ${styles.right}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: callout2Visible ? 1 : 0 }}
+              transition={{ duration: (MOTION.FADE), ease: EASE.DEFAULT }}
             >
               <div ref={callout2BoxRef} className={styles.calloutBox}>
                 <Typewriter
                   text="We add different mindsets to keep the team balanced."
-                  speedMs={18}
+                  speedMs={reducedMotion ? 0 : TYPEWRITER.INTRO.CALLOUT_MS}
                   active={callout2Typing}
                   onTypingEnd={handleCallout2Done}
                 />
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         )}
 
@@ -249,13 +250,14 @@ export default function IntroPhase({ onContinue }: Props) {
             <motion.button
               className={styles.btn}
               onClick={onContinue}
-              initial={{ opacity: 0, y: 16, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{
-                opacity: { delay: BTN_FADE_DELAY_MS / 1000, duration: BTN_IN_DURATION_MS / 1000, ease: 'easeInOut' },
-                y: { delay: BTN_MOVE_DELAY_MS / 1000, duration: BTN_IN_DURATION_MS / 1000, ease: 'easeInOut' },
-                scale: { delay: BTN_MOVE_DELAY_MS / 1000, duration: BTN_IN_DURATION_MS / 1000, ease: 'easeInOut' },
-              }}
+              variants={variants.btnIn}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              transition={{ duration: reducedMotion ? 0.1 : MOTION.CTA.INTRO_IN, ease: EASE.DEFAULT }}
+              whileHover={reducedMotion ? undefined : { y: -4, boxShadow: '0 18px 48px rgba(139,125,240,.45)' }}
+              whileTap={reducedMotion ? undefined : { scale: 0.97 }}
+              style={{ willChange: 'transform, opacity' }}
             >
               Continue
             </motion.button>
@@ -286,3 +288,8 @@ export default function IntroPhase({ onContinue }: Props) {
     </div>
   );
 }
+
+
+
+
+

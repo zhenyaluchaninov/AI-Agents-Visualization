@@ -1,5 +1,3 @@
-import styles from './Screen3.module.css';
-
 export type ChatEndpoint = { x: number; y: number; name: string };
 export type ChatEdgeCtx = { id: string; from: ChatEndpoint; to: ChatEndpoint };
 

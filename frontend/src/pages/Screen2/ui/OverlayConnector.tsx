@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { RefObject } from 'react';
 import styles from '../Screen2.module.css';
+import { EASE, MOTION } from '../constants';
 
 type ConnectorPoint = { x: number; y: number };
 
@@ -29,15 +31,7 @@ function bezierPath(p0: ConnectorPoint, p1: ConnectorPoint) {
   const dy = p1.y - p0.y;
   const c1 = { x: p0.x + dx * 0.35, y: p0.y + dy * 0.1 };
   const c2 = { x: p1.x - dx * 0.35, y: p1.y - dy * 0.1 };
-  return `M ${p0.x},${p0.y} C ${c1.x},${c1.y} ${c2.x},${p1.x},${p1.y}`;
-}
-
-function safePathLength(path: SVGPathElement) {
-  try {
-    return path.getTotalLength();
-  } catch {
-    return 400;
-  }
+  return `M ${p0.x},${p0.y} C ${c1.x},${c1.y} ${c2.x},${c2.y} ${p1.x},${p1.y}`;
 }
 
 export default function OverlayConnector({
@@ -48,6 +42,7 @@ export default function OverlayConnector({
   showToDot = false,
   onDrawEnd,
 }: OverlayConnectorProps) {
+  const reduced = useReducedMotion();
   const svgRef = useRef<SVGSVGElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
   const dotFromRef = useRef<HTMLDivElement>(null);
@@ -97,9 +92,6 @@ export default function OverlayConnector({
 
       if (path) {
         path.setAttribute('d', bezierPath(fromPoint, toPoint));
-        if (!draw) {
-          path.style.opacity = '0';
-        }
       }
 
       rafRef.current = requestAnimationFrame(tick);
@@ -112,80 +104,74 @@ export default function OverlayConnector({
   }, [fromRef, toRef, draw]);
 
   useEffect(() => {
-    const dot = dotFromRef.current;
-    if (!dot) return;
-    dot.classList.toggle(styles.show, showFromDot);
-  }, [showFromDot]);
-
-  useEffect(() => {
-    const dot = dotToRef.current;
-    if (!dot) return;
-    dot.classList.toggle(styles.show, showToDot);
-  }, [showToDot]);
-
-  useEffect(() => {
     const path = pathRef.current;
     if (!path) return;
 
-    if (!draw) {
+    const d = path.getAttribute('d');
+    if (draw && (!d || !d.trim())) {
+      return;
+    }
+
+    const handleTransitionEnd = (event: TransitionEvent) => {
+      if (event.propertyName !== 'stroke-dashoffset') return;
+      path.removeEventListener('transitionend', handleTransitionEnd);
+      if (onDrawEnd) onDrawEnd();
+    };
+
+    if (draw) {
+      let length = 1;
+      try {
+        length = path.getTotalLength();
+        if (!Number.isFinite(length) || length <= 0) length = 1;
+      } catch {
+        length = 1;
+      }
+      const lineDuration = reduced ? '0.1s' : `var(--line, ${MOTION.CONNECTOR_LINE}s)`;
+      const fadeDuration = reduced ? '0.1s' : 'var(--fade, 0.6s)';
+      const ease = 'var(--ease, cubic-bezier(.36,0,.6,.99))';
+
+      path.style.transition = 'none';
+      path.style.strokeDasharray = `${length}`;
+      path.style.strokeDashoffset = `${length}`;
+      path.style.opacity = '1';
+
+      void path.getBoundingClientRect();
+
+      path.style.transition = `opacity ${fadeDuration} ${ease}, stroke-dashoffset ${lineDuration} ${ease}`;
+      path.style.strokeDashoffset = '0';
+
+      path.addEventListener('transitionend', handleTransitionEnd);
+    } else {
       path.style.transition = 'none';
       path.style.opacity = '0';
       path.style.strokeDasharray = '';
       path.style.strokeDashoffset = '';
-      return;
     }
 
-    let raf: number | null = null;
-    let cleanup: (() => void) | null = null;
-
-    const start = () => {
-      const pathEl = pathRef.current;
-      const pts = latestPointsRef.current;
-      if (!pathEl || !pts) {
-        raf = requestAnimationFrame(start);
-        return;
-      }
-
-      pathEl.setAttribute('d', bezierPath(pts.from, pts.to));
-      const length = safePathLength(pathEl);
-      pathEl.style.transition = 'none';
-      pathEl.style.strokeDasharray = `${length} ${length}`;
-      pathEl.style.strokeDashoffset = `${length}`;
-      void pathEl.getBoundingClientRect();
-      pathEl.style.opacity = '1';
-      pathEl.style.transition = `opacity var(--fade) var(--ease), stroke-dashoffset var(--line) var(--ease)`;
-      pathEl.style.strokeDashoffset = '0';
-
-      if (onDrawEnd) {
-        let finished = false;
-        const handle = () => {
-          if (finished) return;
-          finished = true;
-          onDrawEnd();
-        };
-        pathEl.addEventListener('transitionend', handle, { once: true });
-        cleanup = () => {
-          finished = true;
-          pathEl.removeEventListener('transitionend', handle);
-        };
-      }
-    };
-
-    raf = requestAnimationFrame(start);
-
     return () => {
-      if (raf != null) cancelAnimationFrame(raf);
-      if (cleanup) cleanup();
+      path.removeEventListener('transitionend', handleTransitionEnd);
     };
-  }, [draw, onDrawEnd]);
+  }, [draw, onDrawEnd, reduced]);
 
   return (
     <>
       <svg ref={svgRef} className={styles.overlay} width="100%" height="100%">
         <path ref={pathRef} className={styles.overlayPath} />
       </svg>
-      <div ref={dotFromRef} className={styles.dot}></div>
-      <div ref={dotToRef} className={styles.dot}></div>
+      <motion.div
+        ref={dotFromRef}
+        className={styles.dot}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: showFromDot ? 1 : 0 }}
+        transition={{ duration: reduced ? 0.1 : MOTION.FADE, ease: EASE.DEFAULT }}
+      />
+      <motion.div
+        ref={dotToRef}
+        className={styles.dot}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: showToDot ? 1 : 0 }}
+        transition={{ duration: reduced ? 0.1 : MOTION.FADE, ease: EASE.DEFAULT }}
+      />
     </>
   );
 }

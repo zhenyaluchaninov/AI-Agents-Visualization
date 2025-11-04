@@ -1,12 +1,26 @@
 
+import { motion, useReducedMotion } from 'framer-motion';
 import styles from '../Screen2.module.css';
 import type { Agent } from '../types';
+import { getVariants } from '../animations';
+import { EASE } from '../constants';
 
-export default function AgentCard({ agent, delaySec }: { agent: Agent; delaySec: number }) {
+type Props = {
+  agent: Agent;
+  delaySec: number;
+  durationSec: number;
+};
+
+export default function AgentCard({ agent, delaySec, durationSec }: Props) {
+  const reduced = useReducedMotion() ?? false;
+  const variants = getVariants(reduced);
   return (
-    <div
-      className={`${styles.agentCard} ${styles.show}`}
-      style={{ animationDelay: `${delaySec}s` }}
+    <motion.div
+      className={styles.agentCard}
+      variants={variants.agentCardIn}
+      initial="hidden"
+      animate="visible"
+      transition={{ delay: delaySec, duration: durationSec, ease: EASE.OVERSHOOT }}
     >
       <div className={`${styles.agentIcon} ${styles[`personality-${agent.color}` as const]}`}>
         <svg viewBox="0 0 24 24" fill="none" className={styles.agentIconSvg}>
@@ -16,6 +30,6 @@ export default function AgentCard({ agent, delaySec }: { agent: Agent; delaySec:
       </div>
       <div className={styles.agentName}>{agent.role}</div>
       <div className={styles.agentStyle}>{agent.personality}</div>
-    </div>
+    </motion.div>
   );
 }
