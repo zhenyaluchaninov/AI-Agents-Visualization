@@ -128,28 +128,31 @@
   background: linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);
   transition: left .8s var(--ease-hover);
 }
-.btn:disabled::before,
-.btnLocked::before {
-  opacity: 0;
-  transition: none;
-  left: -100%;
-}
 .btn:hover { transform: translateY(-3px); box-shadow: var(--shadow-xl), 0 0 100px rgba(139,125,240,.3); }
 .btn:hover::before { left: 100%; }
 .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: var(--shadow-md); }
 
-.btnLocked {
-  opacity: .6;
-  transform: translateY(6px);
-  box-shadow: var(--shadow-sm);
-  cursor: not-allowed;
-  pointer-events: none;
+
+:global(.viewport) {
+  position: relative;
+  width: clamp(880px, 62vw, 1280px);
+  aspect-ratio: 16 / 9;
+  max-height: 70vh;
+  margin: 28px auto 10px;
+  
+  background: radial-gradient(800px 520px at 50% 50%, #ffffff 0%, #d3d0f0 80%);
+  border-radius: 22px;
+  
+  box-shadow: 0 10px 39px rgba(0,0,0,.12);
+  overflow: hidden;
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity .48s cubic-bezier(.22,1,.36,1), transform .48s cubic-bezier(.22,1,.36,1);
 }
 
-.btnEnabled {
-  opacity: 1;
-  transform: translateY(0);
-}
+
+:global(.viewport.intro-start) { opacity: 0; transform: scale(.985); }
+:global(.viewport.intro-in) { opacity: 1; transform: scale(1); }
 
 
 :global(#layer-neon),
@@ -160,70 +163,28 @@
   display: block;
 }
 
-.viewport {
-  position: relative;
-  width: clamp(880px, 62vw, 1280px);
-  aspect-ratio: 16 / 9;
-  max-height: 70vh;
-  margin: 28px auto 10px;
-  background: radial-gradient(800px 520px at 50% 50%, #ffffff 0%, #d3d0f0 80%);
-  border-radius: 22px;
-  box-shadow: 0 10px 39px rgba(0,0,0,.12);
-  overflow: hidden;
-}
+:global(#agents) { position: absolute; inset: 0; pointer-events: none; }
 
-.viewportOverlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
 
-.agentsLayer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.agentSlot {
-  position: absolute;
-  width: 0;
-  height: 0;
-}
-
-.agentMotion {
-  position: absolute;
-  left: 0;
-  top: 0;
-  pointer-events: none;
-}
-
-.agent {
-  transform: translate(-50%, -50%);
-  min-width: 56px;
-  height: 40px;
-  padding: 0 10px;
-  border-radius: 12px;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.15);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 8px 30px rgba(0,0,0,.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
+:global(.agent) {
+  position: absolute; transform: translate(-50%, -50%) scale(1); min-width: 56px; height: 40px; padding: 0 10px;
+  border-radius: 12px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15);
+  backdrop-filter: blur(8px); box-shadow: 0 8px 30px rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center; pointer-events: auto;
   transition: opacity .44s var(--ease-hover), transform .44s var(--ease-hover);
 }
-
-.agentLabel {
+:global(.agent.introHidden) { opacity: 0; transform: translate(-50%, -50%) scale(.68); }
+:global(.agent .label) {
   font-size: 13px;
   color: #fff;
   white-space: nowrap;
-  font-weight: 600;
-  letter-spacing: .2px;
-  text-shadow: none;
+  font-weight: 600;               
+  letter-spacing: .2px;           
+  text-shadow: none;              
   position: relative;
-  display: inline-block;
+  display: inline-block;          
   z-index: 1;
+  
   filter:
     drop-shadow(0 var(--agent-label-shadow-y) var(--agent-label-shadow-blur) var(--agent-label-shadow-color))
     drop-shadow(0 0 var(--agent-label-outline-blur) var(--agent-label-outline-color));
@@ -231,71 +192,31 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.chatpinMotion {
-  position: absolute;
-  left: 0;
-}
-
-.chatpin {
-  position: absolute;
-  left: 0;
-  top: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  background: rgba(255,255,255,.12);
-  border: 1px solid rgba(255,255,255,.25);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 8px 20px rgba(0,0,0,.35);
-  color: #fff;
-  font-size: 14px;
-  transform: translate(-50%, -100%) scale(var(--pin-scale, 1));
+:global(.chatpin) {
+  position: absolute; transform: translate(-50%, -100%) scale(1); pointer-events: auto; width: 36px; height: 36px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
+  backdrop-filter: blur(6px); box-shadow: 0 8px 20px rgba(0,0,0,.35); font-size: 14px; color: #fff;
   transition: transform .34s cubic-bezier(.25,.1,.25,1), background-color .2s ease, opacity .34s var(--ease-hover);
-  cursor: pointer;
-  pointer-events: auto;
-  --pin-scale: 1;
   will-change: transform;
 }
+:global(.chatpin.introHidden) { opacity: 0; transform: translate(-50%, -100%) scale(.74); pointer-events: none; }
+:global(.chatpin:hover), :global(.chatpin:focus-visible) { background: rgba(255,255,255,.2); transform: translate(-50%, -100%) scale(1.38); outline: none; }
 
-.chatpin:disabled {
-  opacity: .45;
-  cursor: not-allowed;
-  pointer-events: none;
-}
 
-.chatpin:not(:disabled):hover,
-.chatpin:not(:disabled):focus-visible {
-  background: rgba(255,255,255,.2);
-  box-shadow: 0 8px 26px rgba(0,0,0,.38);
-  --pin-scale: 1.38;
-  outline: none;
-}
-
-.chatpinActive {
-  box-shadow: 0 10px 32px rgba(139,125,240,.45);
-}
-
-.chatIcon {
-  width: 29px;
-  height: 29px;
-  display: block;
+:global(.chatpin svg.ci) { width: 29px; height: 29px; display: block; }
+:global(.chatpin svg) { width: 29px; height: 29px; display: block; pointer-events: none; }
+:global(.chatpin svg.ci) {
+  
   filter:
     drop-shadow(0 var(--agent-label-shadow-y) var(--agent-label-shadow-blur) var(--agent-label-shadow-color))
     drop-shadow(0 0 var(--agent-label-outline-blur) var(--agent-label-outline-color));
-  pointer-events: none;
 }
-
-:global(.ci-dots circle) {
-  opacity: 1;
-  transform-origin: center;
-  animation: ciTyping 1.5s ease-in-out infinite;
-}
-:global(.ci-dots circle:nth-child(1)) { animation-delay: 0s; }
-:global(.ci-dots circle:nth-child(2)) { animation-delay: .2s; }
-:global(.ci-dots circle:nth-child(3)) { animation-delay: .4s; }
+:global(.chatpin .ci-bubble) {  }
+:global(.chatpin .ci-dots circle),
+:global(.chatpin svg.ci circle) { opacity: 1; transform-origin: center; animation: ciTyping 1.5s ease-in-out infinite; }
+:global(.chatpin .ci-dots circle:nth-child(1)) { animation-delay: 0s; }
+:global(.chatpin .ci-dots circle:nth-child(2)) { animation-delay: .2s; }
+:global(.chatpin .ci-dots circle:nth-child(3)) { animation-delay: .4s; }
 
 @keyframes ciTyping {
   0% { transform: translateY(0); }
@@ -304,9 +225,12 @@
   100% { transform: translateY(0); }    
 }
 
-.chatpinActive :global(.ci-dots circle:nth-child(1)) { animation: ciTyping 1.5s ease-in-out infinite; animation-delay: 0s; }
-.chatpinActive :global(.ci-dots circle:nth-child(2)) { animation: ciTyping 1.5s ease-in-out infinite; animation-delay: .15s; }
-.chatpinActive :global(.ci-dots circle:nth-child(3)) { animation: ciTyping 1.5s ease-in-out infinite; animation-delay: .3s; }
+:global(.chatpin.active .ci-dots circle:nth-child(1)),
+:global(.chatpin.active svg.ci circle:nth-child(1)) { animation: ciTyping 1.5s ease-in-out infinite; animation-delay: 0s; }
+:global(.chatpin.active .ci-dots circle:nth-child(2)),
+:global(.chatpin.active svg.ci circle:nth-child(2)) { animation: ciTyping 1.5s ease-in-out infinite; animation-delay: .15s; }
+:global(.chatpin.active .ci-dots circle:nth-child(3)),
+:global(.chatpin.active svg.ci circle:nth-child(3)) { animation: ciTyping 1.5s ease-in-out infinite; animation-delay: .3s; }
 
 
 :global(.panel) {
@@ -318,7 +242,6 @@
   right: 12px; top: 12px; bottom: 12px;
   width: clamp(312px, 34%, 456px);
   z-index: 3;
-  pointer-events: auto;
   backdrop-filter: blur(var(--panel-glass-blur)) saturate(1.08);
   background: linear-gradient(135deg,
     rgba(255,255,255,var(--panel-glass-alpha-start)),
@@ -447,6 +370,10 @@
 :global(#controls input[type="range"]) { width: 100%; }
 :global(#controls input[type="color"]) { width: 42px; height: 22px; border: none; background: transparent; }
 :global(#controls small) { font-size: 11px; opacity: .7; }
+
+
+:global(#continueBtn) { transform: translateY(6px); opacity: .6; transition: all .35s ease; }
+:global(#continueBtn.enabled) { transform: translateY(0); opacity: 1; cursor: pointer; }
 
 
 .btn:disabled {
