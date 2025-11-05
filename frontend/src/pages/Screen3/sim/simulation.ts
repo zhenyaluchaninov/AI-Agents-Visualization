@@ -1,4 +1,4 @@
-import { DEFAULT_PARAMS, type Screen3Params } from '../DevControls';
+import { DEFAULT_PARAMS, loadScreen3SavedDefaults, type Screen3Params } from '../DevControls';
 import { S3_AGENTS, S3_EDGES } from '../constants';
 
 export type SimNode = { id: string; x: number; y: number; active?: boolean };
@@ -14,6 +14,18 @@ type Edge = {
   from: string;
   to: string;
   seed: number;
+};
+
+const IDLE_ORB_MAX_CONCURRENT = 4;
+const IDLE_ORB_DURATION_MS = 1600;
+const IDLE_ORB_INTERVAL_MIN_MS = 280;
+const IDLE_ORB_INTERVAL_MAX_MS = 1000;
+const IDLE_ORB_FADE_DURATION_MS = 280;
+type IdleOrbPass = {
+  edgeId: string;
+  start: number;
+  duration: number;
+  direction: 1 | -1;
 };
 
 export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
@@ -41,6 +53,10 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
   let rafId: number | null = null;
 
   const params: Screen3Params = { ...DEFAULT_PARAMS };
+  const savedDefaults = loadScreen3SavedDefaults();
+  if (savedDefaults) {
+    Object.assign(params, savedDefaults);
+  }
   const listeners = new Set<Listener>();
   const emitTick = (snapshot: SimSnapshot) => {
     callbacks.onTick?.(snapshot);
@@ -57,6 +73,13 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
   const edges: Edge[] = S3_EDGES.map((edge) => ({ ...edge, seed: Math.random() }));
 
   const nodes: PNode[] = [];
+  let idleOrbPasses: IdleOrbPass[] = [];
+  let idleOrbVisibility = 1;
+  let idleOrbFadeFrom = 1;
+  let idleOrbFadeTo = 1;
+  let idleOrbFadeStart = performance.now();
+  let idleOrbFadeDuration = IDLE_ORB_FADE_DURATION_MS;
+  let nextIdleOrbTime = performance.now() + randRange(IDLE_ORB_INTERVAL_MIN_MS, IDLE_ORB_INTERVAL_MAX_MS);
   let gridCols = 0;
   let gridRows = 0;
   let cellW = 0;
@@ -75,9 +98,6 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
   let introEdge: IntroEdge = null;
   let activeEdgeId: string | null = null;
   let activeEdgeSince = performance.now();
-  let ambientLastSwitch = performance.now();
-  let ambientAlpha = 0;
-  let ambientActive = new Set<string>();
 
   const mouse = { x: null as number | null, y: null as number | null };
   const handleMouseMove = (event: MouseEvent) => {
@@ -394,6 +414,18 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
     const dt = Math.min(0.033, (now - lastT) / 1000);
     lastT = now;
 
+    if (idleOrbVisibility !== idleOrbFadeTo) {
+      const duration = Math.max(1, idleOrbFadeDuration);
+      const tFade = Math.min(1, (now - idleOrbFadeStart) / duration);
+      idleOrbVisibility = idleOrbFadeFrom + (idleOrbFadeTo - idleOrbFadeFrom) * tFade;
+      if (tFade >= 1) {
+        idleOrbVisibility = idleOrbFadeTo;
+        if (idleOrbVisibility === 0) {
+          idleOrbPasses = [];
+        }
+      }
+    }
+
     drawBackground();
     spacingForces();
     nctx.save();
@@ -446,6 +478,36 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
 
     nctx.globalAlpha = 0.9;
     const agentMap = currentAgentMap();
+
+    idleOrbPasses = idleOrbPasses.filter((pass) => now - pass.start < pass.duration);
+    const isIdleState = !introRunning && !activeEdgeId;
+    if (isIdleState && idleOrbVisibility > 0.02) {
+      if (idleOrbPasses.length < IDLE_ORB_MAX_CONCURRENT && now >= nextIdleOrbTime) {
+        const busy = new Set(idleOrbPasses.map((pass) => pass.edgeId));
+        const candidates = edges.filter((edge) => {
+          if (busy.has(edge.id)) return false;
+          const from = agentMap.get(edge.from);
+          const to = agentMap.get(edge.to);
+          return !!from && !!to;
+        });
+        if (candidates.length > 0) {
+          const pick = candidates[Math.floor(Math.random() * candidates.length)];
+          const duration = IDLE_ORB_DURATION_MS * (0.9 + Math.random() * 0.2);
+          const direction: 1 | -1 = Math.random() > 0.5 ? 1 : -1;
+          idleOrbPasses.push({
+            edgeId: pick.id,
+            start: now,
+            duration,
+            direction,
+          });
+          nextIdleOrbTime = now + randRange(IDLE_ORB_INTERVAL_MIN_MS, IDLE_ORB_INTERVAL_MAX_MS);
+        } else {
+          nextIdleOrbTime = now + 200;
+        }
+      }
+    } else if (!isIdleState) {
+      nextIdleOrbTime = now + randRange(IDLE_ORB_INTERVAL_MIN_MS, IDLE_ORB_INTERVAL_MAX_MS);
+    }
     for (let i = 0; i < nodes.length; i++) {
       const a = nodes[i];
       const ap = a.renderPos();
@@ -479,7 +541,23 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
 
     ectx.clearRect(0, 0, edgesCanvas.width, edgesCanvas.height);
     ectx.save();
-    ectx.globalCompositeOperation = isColorBlackish(params.LINK_COLOR) ? 'source-over' : 'lighter';
+    ectx.globalCompositeOperation = 'source-over';
+    ectx.filter = 'none';
+    const linkAlpha = Math.max(0, Math.min(1, params.LINK_COLOR_A ?? 1));
+    const orbAlpha = Math.max(0, Math.min(1, params.LINK_ORB_COLOR_A ?? params.LINK_COLOR_A ?? 1));
+    const baseOrbColor = params.LINK_ORB_COLOR || params.LINK_COLOR;
+    const linkStrokeColor = colorWithAlpha(params.LINK_COLOR, linkAlpha);
+    const orbFillColorIdle = colorWithAlpha(baseOrbColor, orbAlpha * idleOrbVisibility);
+    const activeLinkAlpha = Math.max(0, Math.min(1, params.ACTIVE_LINK_COLOR_A ?? linkAlpha));
+    const activeLinkColor = colorWithAlpha(params.ACTIVE_LINK_COLOR || params.LINK_COLOR, activeLinkAlpha);
+    const activeOrbAlpha = Math.max(0, Math.min(1, params.ACTIVE_LINK_ORB_COLOR_A ?? params.LINK_ORB_COLOR_A ?? orbAlpha));
+    const activeOrbColor = colorWithAlpha(params.ACTIVE_LINK_ORB_COLOR || baseOrbColor, activeOrbAlpha);
+    const activeOrbCount = Math.max(1, Math.min(40, Math.round(params.ACTIVE_ORB_COUNT ?? 2)));
+    const activeLinkThicknessPx = params.ACTIVE_LINK_THICKNESS ?? params.THICK_A;
+    const activeLinkWidth = Math.max(0.5, activeLinkThicknessPx) * DPR;
+    const idleOrbRadius = Math.max(2 * DPR, (params.LINK_ORB_SIZE || 3) * DPR);
+    const activeOrbSizePx = params.ACTIVE_LINK_ORB_SIZE ?? params.LINK_ORB_SIZE ?? 3;
+    const activeOrbRadius = Math.max(2 * DPR, activeOrbSizePx * DPR);
 
     if (introRunning) {
       if (introEdge) {
@@ -493,11 +571,10 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
           const y = A.y + (B.y - A.y) * t;
           callbacks.onIntroEdgeStep?.(t);
           const baseWidth = params.THICK_A * DPR * 0.7;
-          const baseGlow = params.GLOW_LINKS * DPR * 0.7;
           ectx.lineWidth = baseWidth;
-          ectx.strokeStyle = colorWithAlpha(params.LINK_COLOR, 1.0);
-          ectx.shadowBlur = baseGlow;
-          ectx.shadowColor = params.LINK_COLOR;
+          ectx.strokeStyle = linkStrokeColor;
+          ectx.shadowBlur = 0;
+          ectx.shadowColor = 'transparent';
           ectx.globalAlpha = 1;
           ectx.beginPath();
           ectx.moveTo(A.x, A.y);
@@ -505,11 +582,12 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
           ectx.stroke();
 
           ectx.save();
-          const baseR = Math.max(2 * DPR, (params.LINK_ORB_SIZE || 3) * DPR);
+          const baseR = activeOrbRadius;
+          ectx.shadowBlur = 0;
+          ectx.shadowColor = 'transparent';
           ectx.beginPath();
-          ectx.fillStyle = colorWithAlpha(params.LINK_ORB_COLOR || params.LINK_COLOR, 0.95);
-          ectx.shadowBlur = Math.max(8 * DPR, baseR * 1.6);
-          ectx.shadowColor = params.LINK_ORB_COLOR || params.LINK_COLOR;
+          ectx.globalAlpha = 1;
+          ectx.fillStyle = activeOrbColor;
           ectx.arc(x, y, baseR, 0, Math.PI * 2);
           ectx.fill();
           ectx.restore();
@@ -533,59 +611,85 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
     }
 
     const baseWidth = params.THICK_A * DPR * 0.7;
-    const baseGlow = params.GLOW_LINKS * DPR * 0.7;
     const pulse = activeEdgeId ? 0.5 + 0.5 * Math.sin((now - activeEdgeSince) / 260) : 0;
-    const targetAmb = activeEdgeId ? 0 : 1;
-    ambientAlpha += (targetAmb - ambientAlpha) * Math.min(1, dt * 3);
-    if (now - ambientLastSwitch > 2400) {
-      ambientActive = new Set<string>();
-      const k = 1 + Math.floor(Math.random() * 3);
-      for (let i = 0; i < k; i++) {
-        const pick = edges[Math.floor(Math.random() * edges.length)];
-        if (pick) ambientActive.add(pick.id);
-      }
-      ambientLastSwitch = now;
-    }
 
+    const timeBase = now / IDLE_ORB_DURATION_MS;
     edges.forEach((edge) => {
       const A = agentMap.get(edge.from);
       const B = agentMap.get(edge.to);
       if (!A || !B) return;
       const isActive = edge.id === activeEdgeId;
-      ectx.lineWidth = isActive ? baseWidth * (1 + 0.9 * pulse) : baseWidth;
-      ectx.strokeStyle = colorWithAlpha(params.LINK_COLOR, 1.0);
-      ectx.shadowBlur = isActive ? baseGlow * (1.2 + 0.8 * pulse) : baseGlow;
-      ectx.shadowColor = params.LINK_COLOR;
-      const alphaBase = isActive ? 1 : 0.38;
-      const ambientBoost = ambientActive.has(edge.id) ? ambientAlpha * 0.6 : 0;
-      ectx.globalAlpha = alphaBase + ambientBoost;
+      const pulseFactor = isActive ? 1 + 0.9 * pulse : 1;
+      if (isActive) {
+        ectx.lineWidth = activeLinkWidth * pulseFactor;
+        ectx.strokeStyle = activeLinkColor;
+      } else {
+        ectx.lineWidth = baseWidth;
+        ectx.strokeStyle = linkStrokeColor;
+      }
+      ectx.shadowBlur = 0;
+      ectx.shadowColor = 'transparent';
+      ectx.globalAlpha = 1;
       ectx.beginPath();
       ectx.moveTo(A.x, A.y);
       ectx.lineTo(B.x, B.y);
       ectx.stroke();
 
-      const orbCount = isActive ? 2 : 1;
-      const tNow = ((now / 1600) + edge.seed) % 1;
-      const baseR = Math.max(2 * DPR, (params.LINK_ORB_SIZE || 3) * DPR);
-      for (let k = 0; k < orbCount; k++) {
-        ectx.save();
-        const tt = (tNow + k / Math.max(1, orbCount)) % 1;
-        const x = A.x + (B.x - A.x) * tt;
-        const y = A.y + (B.y - A.y) * tt;
-        ectx.beginPath();
-        ectx.globalAlpha = 0.30 * ambientAlpha + (isActive ? 0.4 : 0);
-        ectx.fillStyle = colorWithAlpha(params.LINK_COLOR, 0.9);
-        ectx.shadowBlur = Math.max(6 * DPR, baseR * 1.2);
-        ectx.shadowColor = params.LINK_COLOR;
-        ectx.arc(x, y, baseR, 0, Math.PI * 2);
-        ectx.fill();
-        ectx.restore();
+      if (isActive) {
+        const phaseStep = 1 / activeOrbCount;
+        for (let k = 0; k < activeOrbCount; k++) {
+          ectx.save();
+          const offset = ((k + 0.5) * phaseStep) % 1;
+          const tt = (timeBase + edge.seed + offset) % 1;
+          const x = A.x + (B.x - A.x) * tt;
+          const y = A.y + (B.y - A.y) * tt;
+          ectx.beginPath();
+          ectx.globalAlpha = 1;
+          ectx.fillStyle = activeOrbColor;
+          ectx.shadowBlur = 0;
+          ectx.shadowColor = 'transparent';
+          ectx.arc(x, y, activeOrbRadius, 0, Math.PI * 2);
+          ectx.fill();
+          ectx.restore();
+        }
+      } else if (idleOrbVisibility > 0.001) {
+        const passes = idleOrbPasses.filter((pass) => pass.edgeId === edge.id);
+        if (passes.length) {
+          passes.forEach((pass) => {
+            const elapsed = now - pass.start;
+            if (elapsed < 0 || elapsed > pass.duration) return;
+            const progress = Math.max(0, Math.min(1, elapsed / pass.duration));
+            const tt = pass.direction === 1 ? progress : 1 - progress;
+            const x = A.x + (B.x - A.x) * tt;
+            const y = A.y + (B.y - A.y) * tt;
+            ectx.save();
+            ectx.beginPath();
+            ectx.globalAlpha = 1;
+            ectx.fillStyle = orbFillColorIdle;
+            ectx.shadowBlur = 0;
+            ectx.shadowColor = 'transparent';
+            ectx.arc(x, y, idleOrbRadius, 0, Math.PI * 2);
+            ectx.fill();
+            ectx.restore();
+          });
+        }
       }
     });
 
     ectx.restore();
     drawVignette();
     rafId = requestAnimationFrame(tick);
+  }
+
+  function setIdleOrbVisibilityTarget(target: number, duration = IDLE_ORB_FADE_DURATION_MS) {
+    const clamped = Math.max(0, Math.min(1, target));
+    idleOrbFadeFrom = idleOrbVisibility;
+    idleOrbFadeTo = clamped;
+    idleOrbFadeStart = performance.now();
+    idleOrbFadeDuration = Math.max(1, duration);
+    if (clamped === 1 && idleOrbVisibility === 0) {
+      idleOrbPasses = [];
+    }
   }
 
   function resize(options: ResizeOptions = {}) {
@@ -642,6 +746,13 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
   function setActiveEdge(id: string | null) {
     activeEdgeId = id;
     activeEdgeSince = performance.now();
+    if (id) {
+      setIdleOrbVisibilityTarget(0);
+    } else {
+      setIdleOrbVisibilityTarget(1);
+      idleOrbPasses = [];
+    }
+    nextIdleOrbTime = activeEdgeSince + randRange(IDLE_ORB_INTERVAL_MIN_MS, IDLE_ORB_INTERVAL_MAX_MS);
   }
 
   function animateIntroEdge(fromId: string, toId: string, dur: number) {
@@ -687,12 +798,13 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
 }
 
 function colorWithAlpha(c: string, a: number) {
+  const alpha = Math.max(0, Math.min(1, a));
   if (c.startsWith('#')) {
     const { r, g, b } = hexToRgb(c);
-    return `rgba(${r},${g},${b},${a})`;
+    return `rgba(${r},${g},${b},${alpha})`;
   }
   if (c.startsWith('hsl')) {
-    return c.replace('hsl', 'hsla').replace(')', `, ${a})`);
+    return c.replace('hsl', 'hsla').replace(')', `, ${alpha})`);
   }
   return c;
 }
@@ -730,4 +842,8 @@ function hexToRgb(hex: string) {
 function hexToRgba(hex: string, a: number) {
   const { r, g, b } = hexToRgb(hex);
   return `rgba(${r},${g},${b},${a})`;
+}
+
+function randRange(min: number, max: number) {
+  return min + Math.random() * (max - min);
 }

@@ -3,10 +3,7 @@ import { useState } from 'react';
 import Screen1 from './pages/Screen1/Screen1';
 import Screen2 from './pages/Screen2/Screen2';
 import Screen3 from './pages/Screen3/Screen3';
-import Team from './pages/Team';
-import Discussion from './pages/Discussion';
-import Insights from './pages/Insights';
-import Scenarios from './pages/Scenarios';
+
 
 export default function App() {
   const [debugOpen, setDebugOpen] = useState(true);
@@ -75,11 +72,7 @@ export default function App() {
         <Route path="/" element={<Screen1 />} />
         <Route path="/screen2" element={<Screen2 />} />
         <Route path="/screen3" element={<Screen3 devControlsEnabled={screen3DevControls} />} />
-        <Route path="/team" element={<Team />} />
-        <Route path="/discussion" element={<Discussion />} />
-        <Route path="/insights" element={<Insights />} />
-        <Route path="/scenarios" element={<Scenarios />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect } from 'react';
 
 
@@ -16,11 +17,19 @@ export interface Screen3Params {
   THICK_A: number;
   P_LINK_OPQ_FRAC: number;
   BLUR: number;
-  GLOW_LINKS: number;
   LINK_ORB_SIZE: number;
   COLOR: string;
   LINK_COLOR: string;
   LINK_ORB_COLOR: string;
+  LINK_COLOR_A: number;
+  LINK_ORB_COLOR_A: number;
+  ACTIVE_LINK_THICKNESS: number;
+  ACTIVE_LINK_COLOR: string;
+  ACTIVE_LINK_COLOR_A: number;
+  ACTIVE_ORB_COUNT: number;
+  ACTIVE_LINK_ORB_SIZE: number;
+  ACTIVE_LINK_ORB_COLOR: string;
+  ACTIVE_LINK_ORB_COLOR_A: number;
   BG1: string;
   BG2: string;
   VIG_COLOR: string;
@@ -43,16 +52,28 @@ export const DEFAULT_PARAMS: Screen3Params = {
   THICK_A: 2,
   P_LINK_OPQ_FRAC: 0.93,
   BLUR: 0,
-  GLOW_LINKS: 20,
   LINK_ORB_SIZE: 3,
   COLOR: '#a298f2',
   LINK_COLOR: '#8b7df0',
   LINK_ORB_COLOR: '#8280ff',
+  LINK_COLOR_A: 1,
+  LINK_ORB_COLOR_A: 0.9,
+  ACTIVE_LINK_THICKNESS: 3,
+  ACTIVE_LINK_COLOR: '#8b7df0',
+  ACTIVE_LINK_COLOR_A: 1,
+  ACTIVE_ORB_COUNT: 2,
+  ACTIVE_LINK_ORB_SIZE: 3,
+  ACTIVE_LINK_ORB_COLOR: '#8b7df0',
+  ACTIVE_LINK_ORB_COLOR_A: 1,
   BG1: '#ffffff',
   BG2: '#d3d0f0',
   VIG_COLOR: '#a0beda',
   VIG_STRENGTH: 0.1,
   LIFELESS: false,
+};
+
+export const loadScreen3SavedDefaults = (): Partial<Screen3Params> | null => {
+  try { return JSON.parse(localStorage.getItem('screen3.defaults.v1') || 'null'); } catch { return null; }
 };
 
 
@@ -92,10 +113,74 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
         overflowY: 'auto',
         zIndex: '20',
       } as Partial<CSSStyleDeclaration>);
-    } catch {}
+    } catch { /* noop */ }
   }
 
-  const ui = {
+  const ui: {
+    nodes: HTMLInputElement;
+    link: HTMLInputElement;
+    pspeed: HTMLInputElement;
+    psize: HTMLInputElement;
+    lifeless: HTMLInputElement;
+    thickP: HTMLInputElement;
+    thickA: HTMLInputElement;
+    plinkOpaqueAt: HTMLInputElement;
+    color: HTMLInputElement;
+    colorVal: HTMLSpanElement;
+    linkColor: HTMLInputElement;
+    trailSize: HTMLInputElement;
+    trailColor: HTMLInputElement;
+    linkOpacity: HTMLInputElement;
+    trailOpacity: HTMLInputElement;
+    activeLinkThickness: HTMLInputElement;
+    activeLinkColor: HTMLInputElement;
+    activeLinkOpacity: HTMLInputElement;
+    activeOrbCount: HTMLInputElement;
+    activeOrbSize: HTMLInputElement;
+    activeOrbColor: HTMLInputElement;
+    activeOrbOpacity: HTMLInputElement;
+    life: HTMLInputElement;
+    spacingMin: HTMLInputElement;
+    spacingMax: HTMLInputElement;
+    blur: HTMLInputElement;
+    holeR: HTMLInputElement;
+    nodesVal: HTMLSpanElement;
+    linkVal: HTMLSpanElement;
+    pspeedVal: HTMLSpanElement;
+    psizeVal: HTMLSpanElement;
+    thickPVal: HTMLSpanElement;
+    thickAVal: HTMLSpanElement;
+    plinkOpaqueAtVal: HTMLSpanElement;
+    lifeVal: HTMLSpanElement;
+    spacingMinVal: HTMLSpanElement;
+    spacingMaxVal: HTMLSpanElement;
+    blurVal: HTMLSpanElement;
+    holeRVal: HTMLSpanElement;
+    trailSizeVal: HTMLSpanElement;
+    trailColorVal: HTMLSpanElement;
+    linkOpacityVal: HTMLSpanElement;
+    trailOpacityVal: HTMLSpanElement;
+    activeLinkThicknessVal: HTMLSpanElement;
+    activeLinkColorVal: HTMLSpanElement;
+    activeLinkOpacityVal: HTMLSpanElement;
+    activeOrbCountVal: HTMLSpanElement;
+    activeOrbSizeVal: HTMLSpanElement;
+    activeOrbColorVal: HTMLSpanElement;
+    activeOrbOpacityVal: HTMLSpanElement;
+    linkColorVal: HTMLSpanElement;
+    bg1: HTMLInputElement;
+    bg2: HTMLInputElement;
+    bg1Val: HTMLSpanElement;
+    bg2Val: HTMLSpanElement;
+    vigColor: HTMLInputElement;
+    vigStrength: HTMLInputElement;
+    vigColorVal: HTMLSpanElement;
+    vigStrengthVal: HTMLSpanElement;
+    attr: HTMLInputElement;
+    attrR: HTMLInputElement;
+    attrVal: HTMLSpanElement;
+    attrRVal: HTMLSpanElement;
+  } = {
     nodes: qs<HTMLInputElement>('nodes')!,
     link: qs<HTMLInputElement>('link')!,
     pspeed: qs<HTMLInputElement>('pspeed')!,
@@ -104,12 +189,20 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
     thickP: qs<HTMLInputElement>('thickP')!,
     thickA: qs<HTMLInputElement>('thickA')!,
     plinkOpaqueAt: qs<HTMLInputElement>('plinkOpaqueAt')!,
-    glowLinks: qs<HTMLInputElement>('glowLinks')!,
     color: qs<HTMLInputElement>('color')!,
     colorVal: qs<HTMLSpanElement>('colorVal')!,
     linkColor: qs<HTMLInputElement>('linkColor')!,
     trailSize: qs<HTMLInputElement>('trailSize')!,
     trailColor: qs<HTMLInputElement>('trailColor')!,
+    linkOpacity: qs<HTMLInputElement>('linkOpacity')!,
+    trailOpacity: qs<HTMLInputElement>('trailOpacity')!,
+    activeLinkThickness: qs<HTMLInputElement>('activeLinkThickness')!,
+    activeLinkColor: qs<HTMLInputElement>('activeLinkColor')!,
+    activeLinkOpacity: qs<HTMLInputElement>('activeLinkOpacity')!,
+    activeOrbCount: qs<HTMLInputElement>('activeOrbCount')!,
+    activeOrbSize: qs<HTMLInputElement>('activeOrbSize')!,
+    activeOrbColor: qs<HTMLInputElement>('activeOrbColor')!,
+    activeOrbOpacity: qs<HTMLInputElement>('activeOrbOpacity')!,
     life: qs<HTMLInputElement>('life')!,
     spacingMin: qs<HTMLInputElement>('spacingMin')!,
     spacingMax: qs<HTMLInputElement>('spacingMax')!,
@@ -122,7 +215,6 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
     thickPVal: qs<HTMLSpanElement>('thickPVal')!,
     thickAVal: qs<HTMLSpanElement>('thickAVal')!,
     plinkOpaqueAtVal: qs<HTMLSpanElement>('plinkOpaqueAtVal')!,
-    glowLinksVal: qs<HTMLSpanElement>('glowLinksVal')!,
     lifeVal: qs<HTMLSpanElement>('lifeVal')!,
     spacingMinVal: qs<HTMLSpanElement>('spacingMinVal')!,
     spacingMaxVal: qs<HTMLSpanElement>('spacingMaxVal')!,
@@ -130,6 +222,15 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
     holeRVal: qs<HTMLSpanElement>('holeRVal')!,
     trailSizeVal: qs<HTMLSpanElement>('trailSizeVal')!,
     trailColorVal: qs<HTMLSpanElement>('trailColorVal')!,
+    linkOpacityVal: qs<HTMLSpanElement>('linkOpacityVal')!,
+    trailOpacityVal: qs<HTMLSpanElement>('trailOpacityVal')!,
+    activeLinkThicknessVal: qs<HTMLSpanElement>('activeLinkThicknessVal')!,
+    activeLinkColorVal: qs<HTMLSpanElement>('activeLinkColorVal')!,
+    activeLinkOpacityVal: qs<HTMLSpanElement>('activeLinkOpacityVal')!,
+    activeOrbCountVal: qs<HTMLSpanElement>('activeOrbCountVal')!,
+    activeOrbSizeVal: qs<HTMLSpanElement>('activeOrbSizeVal')!,
+    activeOrbColorVal: qs<HTMLSpanElement>('activeOrbColorVal')!,
+    activeOrbOpacityVal: qs<HTMLSpanElement>('activeOrbOpacityVal')!,
     bg1: qs<HTMLInputElement>('bg1')!,
     bg2: qs<HTMLInputElement>('bg2')!,
     bg1Val: qs<HTMLSpanElement>('bg1Val')!,
@@ -148,13 +249,6 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
     if (!ui[k]) return false;
   }
 
-  function loadSavedDefaults(): Partial<Screen3Params> | null {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw);
-    } catch { return null; }
-  }
   function applyDefaultsToUI(d: Partial<Screen3Params>) {
     if (d.MAX != null) ui.nodes.value = String(d.MAX);
     if (d.HOLE_R != null) ui.holeR.value = String(d.HOLE_R);
@@ -170,8 +264,16 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
     if (d.THICK_A != null) ui.thickA.value = String(d.THICK_A);
     if (d.P_LINK_OPQ_FRAC != null) ui.plinkOpaqueAt.value = String(Math.round(d.P_LINK_OPQ_FRAC * 100));
     if (d.BLUR != null) ui.blur.value = String(d.BLUR);
-    if (d.GLOW_LINKS != null) ui.glowLinks.value = String(d.GLOW_LINKS);
     if (d.LINK_ORB_SIZE != null) ui.trailSize.value = String(d.LINK_ORB_SIZE);
+    if (d.LINK_COLOR_A != null) ui.linkOpacity.value = String(Math.round(d.LINK_COLOR_A * 100));
+    if (d.LINK_ORB_COLOR_A != null) ui.trailOpacity.value = String(Math.round(d.LINK_ORB_COLOR_A * 100));
+    if (d.ACTIVE_LINK_THICKNESS != null) ui.activeLinkThickness.value = String(d.ACTIVE_LINK_THICKNESS);
+    if (d.ACTIVE_LINK_COLOR != null) ui.activeLinkColor.value = d.ACTIVE_LINK_COLOR;
+    if (d.ACTIVE_LINK_COLOR_A != null) ui.activeLinkOpacity.value = String(Math.round(d.ACTIVE_LINK_COLOR_A * 100));
+    if (d.ACTIVE_ORB_COUNT != null) ui.activeOrbCount.value = String(d.ACTIVE_ORB_COUNT);
+    if (d.ACTIVE_LINK_ORB_SIZE != null) ui.activeOrbSize.value = String(d.ACTIVE_LINK_ORB_SIZE);
+    if (d.ACTIVE_LINK_ORB_COLOR != null) ui.activeOrbColor.value = d.ACTIVE_LINK_ORB_COLOR;
+    if (d.ACTIVE_LINK_ORB_COLOR_A != null) ui.activeOrbOpacity.value = String(Math.round(d.ACTIVE_LINK_ORB_COLOR_A * 100));
     if (d.COLOR != null) ui.color.value = d.COLOR;
     if (d.LINK_COLOR != null) ui.linkColor.value = d.LINK_COLOR;
     if (d.LINK_ORB_COLOR != null) ui.trailColor.value = d.LINK_ORB_COLOR;
@@ -181,8 +283,10 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
     if (d.VIG_STRENGTH != null) ui.vigStrength.value = String(Math.round(d.VIG_STRENGTH * 100));
     if (d.LIFELESS != null) ui.lifeless.checked = !!d.LIFELESS;
   }
-  const savedDefaults = loadSavedDefaults();
+  const savedDefaults = loadScreen3SavedDefaults();
   if (savedDefaults) applyDefaultsToUI(savedDefaults);
+
+  const pctToAlpha = (value: string) => Math.max(0, Math.min(1, ((parseInt(value, 10) || 0) / 100)));
 
   params.MAX = parseInt(ui.nodes.value, 10);
   params.LINK_DIST = parseInt(ui.link.value, 10);
@@ -191,11 +295,19 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
   params.THICK_P = parseInt(ui.thickP.value, 10);
   params.THICK_A = parseInt(ui.thickA.value, 10);
   params.P_LINK_OPQ_FRAC = parseInt(ui.plinkOpaqueAt.value, 10) / 100;
-  params.GLOW_LINKS = parseInt(ui.glowLinks.value, 10);
   params.COLOR = ui.color.value;
   params.LINK_COLOR = ui.linkColor.value;
   params.LINK_ORB_SIZE = parseInt(ui.trailSize.value, 10);
   params.LINK_ORB_COLOR = ui.trailColor.value;
+  params.LINK_COLOR_A = pctToAlpha(ui.linkOpacity.value);
+  params.LINK_ORB_COLOR_A = pctToAlpha(ui.trailOpacity.value);
+  params.ACTIVE_LINK_THICKNESS = parseInt(ui.activeLinkThickness.value, 10);
+  params.ACTIVE_LINK_COLOR = ui.activeLinkColor.value;
+  params.ACTIVE_LINK_COLOR_A = pctToAlpha(ui.activeLinkOpacity.value);
+  params.ACTIVE_ORB_COUNT = parseInt(ui.activeOrbCount.value, 10);
+  params.ACTIVE_LINK_ORB_SIZE = parseInt(ui.activeOrbSize.value, 10);
+  params.ACTIVE_LINK_ORB_COLOR = ui.activeOrbColor.value;
+  params.ACTIVE_LINK_ORB_COLOR_A = pctToAlpha(ui.activeOrbOpacity.value);
   params.BG1 = ui.bg1.value;
   params.BG2 = ui.bg2.value;
   params.VIG_COLOR = ui.vigColor.value;
@@ -216,8 +328,29 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
     ui.psizeVal.textContent = params.P_SIZE.toFixed(1);
     ui.thickPVal.textContent = String(params.THICK_P);
     ui.thickAVal.textContent = String(params.THICK_A);
-    ui.glowLinksVal.textContent = String(params.GLOW_LINKS);
     ui.plinkOpaqueAtVal.textContent = Math.round(params.P_LINK_OPQ_FRAC * 100) + '%';
+    const linkOpacityPct = Math.round((params.LINK_COLOR_A ?? 0) * 100);
+    ui.linkOpacity.value = String(linkOpacityPct);
+    ui.linkOpacityVal.textContent = linkOpacityPct + '%';
+    const trailOpacityPct = Math.round((params.LINK_ORB_COLOR_A ?? 0) * 100);
+    ui.trailOpacity.value = String(trailOpacityPct);
+    ui.trailOpacityVal.textContent = trailOpacityPct + '%';
+    ui.activeLinkThickness.value = String(params.ACTIVE_LINK_THICKNESS);
+    ui.activeLinkThicknessVal.textContent = String(params.ACTIVE_LINK_THICKNESS);
+    ui.activeLinkColor.value = params.ACTIVE_LINK_COLOR;
+    ui.activeLinkColorVal.textContent = params.ACTIVE_LINK_COLOR;
+    const activeLinkOpacityPct = Math.round((params.ACTIVE_LINK_COLOR_A ?? 0) * 100);
+    ui.activeLinkOpacity.value = String(activeLinkOpacityPct);
+    ui.activeLinkOpacityVal.textContent = activeLinkOpacityPct + '%';
+    ui.activeOrbCount.value = String(params.ACTIVE_ORB_COUNT);
+    ui.activeOrbCountVal.textContent = String(params.ACTIVE_ORB_COUNT);
+    ui.activeOrbSize.value = String(params.ACTIVE_LINK_ORB_SIZE);
+    ui.activeOrbSizeVal.textContent = String(params.ACTIVE_LINK_ORB_SIZE);
+    ui.activeOrbColor.value = params.ACTIVE_LINK_ORB_COLOR;
+    ui.activeOrbColorVal.textContent = params.ACTIVE_LINK_ORB_COLOR;
+    const activeOrbOpacityPct = Math.round((params.ACTIVE_LINK_ORB_COLOR_A ?? 0) * 100);
+    ui.activeOrbOpacity.value = String(activeOrbOpacityPct);
+    ui.activeOrbOpacityVal.textContent = activeOrbOpacityPct + '%';
     ui.bg1Val.textContent = params.BG1; ui.bg2Val.textContent = params.BG2; ui.linkColorVal.textContent = params.LINK_COLOR; ui.colorVal.textContent = params.COLOR;
     ui.vigColorVal.textContent = params.VIG_COLOR; ui.vigStrengthVal.textContent = params.VIG_STRENGTH.toFixed(2);
     ui.attrVal.textContent = params.ATTR.toFixed(3); ui.attrRVal.textContent = String(params.ATTR_R);
@@ -230,7 +363,7 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
     ui.holeRVal.textContent = String(params.HOLE_R);
   };
 
-  [ui.link, ui.pspeed, ui.psize, ui.thickP, ui.thickA, ui.plinkOpaqueAt, ui.glowLinks, ui.attr, ui.attrR, ui.life, ui.blur, ui.trailSize, ui.holeR]
+  [ui.link, ui.pspeed, ui.psize, ui.thickP, ui.thickA, ui.plinkOpaqueAt, ui.attr, ui.attrR, ui.life, ui.blur, ui.trailSize, ui.holeR, ui.linkOpacity, ui.trailOpacity, ui.activeLinkThickness, ui.activeLinkOpacity, ui.activeOrbCount, ui.activeOrbSize, ui.activeOrbOpacity]
     .forEach((inp: HTMLInputElement) => inp.addEventListener('input', () => {
       params.LINK_DIST = parseInt(ui.link.value, 10);
       params.P_SPEED = parseInt(ui.pspeed.value, 10) / 100;
@@ -238,13 +371,19 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
       params.THICK_P = parseInt(ui.thickP.value, 10);
       params.THICK_A = parseInt(ui.thickA.value, 10);
       params.P_LINK_OPQ_FRAC = parseInt(ui.plinkOpaqueAt.value, 10) / 100;
-      params.GLOW_LINKS = parseInt(ui.glowLinks.value, 10);
       params.ATTR = parseInt(ui.attr.value, 10) / 100;
       params.ATTR_R = parseInt(ui.attrR.value, 10);
       params.MEAN_LIFE = parseInt(ui.life.value, 10);
       params.BLUR = parseInt(ui.blur.value, 10);
       params.LINK_ORB_SIZE = parseInt(ui.trailSize.value, 10);
       params.HOLE_R = parseInt(ui.holeR.value, 10);
+      params.LINK_COLOR_A = pctToAlpha(ui.linkOpacity.value);
+      params.LINK_ORB_COLOR_A = pctToAlpha(ui.trailOpacity.value);
+      params.ACTIVE_LINK_THICKNESS = parseInt(ui.activeLinkThickness.value, 10);
+      params.ACTIVE_LINK_COLOR_A = pctToAlpha(ui.activeLinkOpacity.value);
+      params.ACTIVE_ORB_COUNT = parseInt(ui.activeOrbCount.value, 10);
+      params.ACTIVE_LINK_ORB_SIZE = parseInt(ui.activeOrbSize.value, 10);
+      params.ACTIVE_LINK_ORB_COLOR_A = pctToAlpha(ui.activeOrbOpacity.value);
       sync();
     }));
   ui.spacingMin.addEventListener('input', () => { params.SPACING_MIN = parseInt(ui.spacingMin.value, 10); opts.randomizeNodeSpacings(); sync(); });
@@ -255,6 +394,8 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
   ui.color.addEventListener('input', () => { params.COLOR = ui.color.value; ui.colorVal.textContent = params.COLOR; });
   ui.linkColor.addEventListener('input', () => { params.LINK_COLOR = ui.linkColor.value; ui.linkColorVal.textContent = params.LINK_COLOR; });
   ui.trailColor.addEventListener('input', () => { params.LINK_ORB_COLOR = ui.trailColor.value; ui.trailColorVal.textContent = params.LINK_ORB_COLOR; });
+  ui.activeLinkColor.addEventListener('input', () => { params.ACTIVE_LINK_COLOR = ui.activeLinkColor.value; ui.activeLinkColorVal.textContent = params.ACTIVE_LINK_COLOR; });
+  ui.activeOrbColor.addEventListener('input', () => { params.ACTIVE_LINK_ORB_COLOR = ui.activeOrbColor.value; ui.activeOrbColorVal.textContent = params.ACTIVE_LINK_ORB_COLOR; });
   ui.bg1.addEventListener('input', () => { params.BG1 = ui.bg1.value; ui.bg1Val.textContent = params.BG1; });
   ui.bg2.addEventListener('input', () => { params.BG2 = ui.bg2.value; ui.bg2Val.textContent = params.BG2; });
   ui.vigColor.addEventListener('input', () => { params.VIG_COLOR = ui.vigColor.value; ui.vigColorVal.textContent = params.VIG_COLOR; });
@@ -283,17 +424,25 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
       `  THICK_A: ${p.THICK_A},`,
       `  P_LINK_OPQ_FRAC: ${p.P_LINK_OPQ_FRAC},`,
       `  BLUR: ${p.BLUR},`,
-      `  GLOW_LINKS: ${p.GLOW_LINKS},`,
       `  LINK_ORB_SIZE: ${p.LINK_ORB_SIZE},`,
       `  COLOR: '${esc(p.COLOR)}',`,
       `  LINK_COLOR: '${esc(p.LINK_COLOR)}',`,
       `  LINK_ORB_COLOR: '${esc(p.LINK_ORB_COLOR)}',`,
+      `  LINK_COLOR_A: ${p.LINK_COLOR_A},`,
+      `  LINK_ORB_COLOR_A: ${p.LINK_ORB_COLOR_A},`,
+      `  ACTIVE_LINK_THICKNESS: ${p.ACTIVE_LINK_THICKNESS},`,
+      `  ACTIVE_LINK_COLOR: '${esc(p.ACTIVE_LINK_COLOR)}',`,
+      `  ACTIVE_LINK_COLOR_A: ${p.ACTIVE_LINK_COLOR_A},`,
+      `  ACTIVE_ORB_COUNT: ${p.ACTIVE_ORB_COUNT},`,
+      `  ACTIVE_LINK_ORB_SIZE: ${p.ACTIVE_LINK_ORB_SIZE},`,
+      `  ACTIVE_LINK_ORB_COLOR: '${esc(p.ACTIVE_LINK_ORB_COLOR)}',`,
+      `  ACTIVE_LINK_ORB_COLOR_A: ${p.ACTIVE_LINK_ORB_COLOR_A},`,
       `  BG1: '${esc(p.BG1)}',`,
       `  BG2: '${esc(p.BG2)}',`,
       `  VIG_COLOR: '${esc(p.VIG_COLOR)}',`,
       `  VIG_STRENGTH: ${p.VIG_STRENGTH},`,
       `  LIFELESS: ${p.LIFELESS},`,
-      '};'
+      '};',
     ];
     return lines.join('\n');
   }
@@ -302,10 +451,10 @@ export function initDevControls(root: HTMLElement, params: Screen3Params, opts: 
   const clearBtn = document.getElementById('clearDefaults') as HTMLButtonElement | null;
   const copyBtn = document.getElementById('copyDefaults') as HTMLButtonElement | null;
   if (saveBtn) saveBtn.addEventListener('click', () => {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(params)); alert('Saved current UI values as defaults for this browser.'); } catch {}
+    try { localStorage.setItem(LS_KEY, JSON.stringify(params)); alert('Saved current UI values as defaults for this browser.'); } catch { /* noop */ }
   });
   if (clearBtn) clearBtn.addEventListener('click', () => {
-    try { localStorage.removeItem(LS_KEY); alert('Cleared saved defaults.'); } catch {}
+    try { localStorage.removeItem(LS_KEY); alert('Cleared saved defaults.'); } catch { /* noop */ }
   });
   if (copyBtn) copyBtn.addEventListener('click', async () => {
     const code = currentParamsToCode(params);
@@ -346,10 +495,19 @@ export function DevControls({ enabled, onReady }: { enabled: boolean; onReady?: 
       <details className="group" open>
         <summary>Agents</summary>
         <div className="row"><label>Link Color</label><input id="linkColor" type="color" defaultValue="#8b7df0" /><span id="linkColorVal">#8b7df0</span></div>
+        <div className="row"><label>Link Opacity (%)</label><input id="linkOpacity" type="range" min="0" max="100" defaultValue="100" /><span id="linkOpacityVal">100%</span></div>
         <div className="row"><label>Agent Link Thickness</label><input id="thickA" type="range" min="1" max="8" defaultValue="2" /><span id="thickAVal">2</span></div>
-        <div className="row"><label>Agent Links Glow</label><input id="glowLinks" type="range" min="0" max="40" defaultValue="20" /><span id="glowLinksVal">20</span></div>
-        <div className="row"><label>Trail Size (px)</label><input id="trailSize" type="range" min="1" max="10" defaultValue="3" /><span id="trailSizeVal">3</span></div>
-        <div className="row"><label>Trail Color</label><input id="trailColor" type="color" defaultValue="#8280ff" /><span id="trailColorVal">#8280ff</span></div>
+        <div className="row"><label>Orb Size (px)</label><input id="trailSize" type="range" min="1" max="10" defaultValue="3" /><span id="trailSizeVal">3</span></div>
+        <div className="row"><label>Orb Color</label><input id="trailColor" type="color" defaultValue="#8280ff" /><span id="trailColorVal">#8280ff</span></div>
+        <div className="row"><label>Orb Opacity (%)</label><input id="trailOpacity" type="range" min="0" max="100" defaultValue="90" /><span id="trailOpacityVal">90%</span></div>
+        <h3>Active Link</h3>
+        <div className="row"><label>Active Link Thickness (px)</label><input id="activeLinkThickness" type="range" min="1" max="12" defaultValue="3" /><span id="activeLinkThicknessVal">3</span></div>
+        <div className="row"><label>Active Link Color</label><input id="activeLinkColor" type="color" defaultValue="#8b7df0" /><span id="activeLinkColorVal">#8b7df0</span></div>
+        <div className="row"><label>Active Link Opacity (%)</label><input id="activeLinkOpacity" type="range" min="0" max="100" defaultValue="100" /><span id="activeLinkOpacityVal">100%</span></div>
+        <div className="row"><label>Active Orb Count</label><input id="activeOrbCount" type="range" min="1" max="40" defaultValue="2" /><span id="activeOrbCountVal">2</span></div>
+        <div className="row"><label>Active Orb Size (px)</label><input id="activeOrbSize" type="range" min="1" max="10" defaultValue="3" /><span id="activeOrbSizeVal">3</span></div>
+        <div className="row"><label>Active Orb Color</label><input id="activeOrbColor" type="color" defaultValue="#8b7df0" /><span id="activeOrbColorVal">#8b7df0</span></div>
+        <div className="row"><label>Active Orb Opacity (%)</label><input id="activeOrbOpacity" type="range" min="0" max="100" defaultValue="100" /><span id="activeOrbOpacityVal">100%</span></div>
       </details>
       <details className="group" open>
         <summary>Background</summary>
