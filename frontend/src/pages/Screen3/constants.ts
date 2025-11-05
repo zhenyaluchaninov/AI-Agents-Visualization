@@ -43,11 +43,35 @@ export const S3_AGENTS: AgentMeta[] = [
   { id: 'A6', name: 'Ops', color: '#ff6b6b' },
 ] as const;
 
+export const S3_AGENT_NAME_TO_ID: Record<string, string> = S3_AGENTS.reduce(
+  (map, agent) => {
+    map[agent.name] = agent.id;
+    return map;
+  },
+  {} as Record<string, string>,
+);
+
 export type AgentEdge = {
   id: string;
   from: string;
   to: string;
 };
+
+const INTRO_AGENT_SEQUENCE = ['Research', 'Design', 'Engineer', 'Strategy', 'Ops', 'Product', 'Research'] as const;
+
+export const S3_INTRO_EDGES: AgentEdge[] = INTRO_AGENT_SEQUENCE.slice(0, -1).map((name, index) => {
+  const nextName = INTRO_AGENT_SEQUENCE[index + 1];
+  const from = S3_AGENT_NAME_TO_ID[name];
+  const to = S3_AGENT_NAME_TO_ID[nextName];
+  if (!from || !to) {
+    throw new Error(`Missing agent id for intro edge ${name} -> ${nextName}`);
+  }
+  return {
+    id: `INTRO_${index + 1}`,
+    from,
+    to,
+  };
+});
 
 export const S3_EDGES = [
   { id: 'E1', from: 'A1', to: 'A3' },

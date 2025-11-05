@@ -1,5 +1,6 @@
 import { DEFAULT_PARAMS, loadScreen3SavedDefaults, type Screen3Params } from '../DevControls';
-import { S3_AGENTS, S3_EDGES } from '../constants';
+import { S3_AGENTS, S3_EDGES, S3_INTRO_EDGES } from '../constants';
+import type { AgentEdge } from '../constants';
 
 export type SimNode = { id: string; x: number; y: number; active?: boolean };
 export type SimSnapshot = { nodes: SimNode[]; t: number };
@@ -15,6 +16,9 @@ type Edge = {
   to: string;
   seed: number;
 };
+
+const INTRO_OVERRIDES_GRAPH = true; // if true, never re-hydrate legacy edges
+const INTRO_EDGE_DURATION_MS = 360;
 
 const IDLE_ORB_MAX_CONCURRENT = 4;
 const IDLE_ORB_DURATION_MS = 1600;
@@ -70,7 +74,34 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
 
   const anchors = S3_AGENTS.map(() => ({ x: 0, y: 0, angle: 0 }));
   let agentNodes = S3_AGENTS.map((agent) => ({ id: agent.id, x: 0, y: 0 }));
-  const edges: Edge[] = S3_EDGES.map((edge) => ({ ...edge, seed: Math.random() }));
+  let runtimeEdges: Edge[] = [];
+
+  const toRuntimeEdge = (edge: AgentEdge | Edge): Edge =>
+    'seed' in edge ? { ...edge } : { id: edge.id, from: edge.from, to: edge.to, seed: Math.random() };
+
+  const cloneRuntimeEdge = (edge: Edge): Edge => ({ ...edge });
+
+  const setRuntimeEdges = (edges: Array<AgentEdge | Edge>) => {
+    runtimeEdges = edges.map(toRuntimeEdge);
+  };
+
+  const appendRuntimeEdge = (edge: AgentEdge | Edge) => {
+    const candidate = toRuntimeEdge(edge);
+    const idx = runtimeEdges.findIndex((existing) => existing.id === candidate.id);
+    if (idx >= 0) {
+      runtimeEdges[idx] = candidate;
+    } else {
+      runtimeEdges.push(candidate);
+    }
+  };
+
+  const getRuntimeEdges = () => runtimeEdges.map(cloneRuntimeEdge);
+
+  const toAgentEdge = (edge: Edge): AgentEdge => ({ id: edge.id, from: edge.from, to: edge.to });
+
+  if (!INTRO_OVERRIDES_GRAPH) {
+    setRuntimeEdges(S3_EDGES);
+  }
 
   const nodes: PNode[] = [];
   let idleOrbPasses: IdleOrbPass[] = [];
@@ -87,8 +118,7 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
   let seededOnce = false;
 
   type IntroEdge = {
-    fromId: string;
-    toId: string;
+    edge: Edge;
     start: number;
     dur: number;
     resolve: () => void;
@@ -341,7 +371,7 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
       target.x = source.x / DPR;
       target.y = source.y / DPR;
       const onEdge = activeEdgeId
-        ? edges.some((edge) => edge.id === activeEdgeId && (edge.from === target.id || edge.to === target.id))
+        ? runtimeEdges.some((edge) => edge.id === activeEdgeId && (edge.from === target.id || edge.to === target.id))
         : false;
       target.active = onEdge;
     }
@@ -484,7 +514,7 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
     if (isIdleState && idleOrbVisibility > 0.02) {
       if (idleOrbPasses.length < IDLE_ORB_MAX_CONCURRENT && now >= nextIdleOrbTime) {
         const busy = new Set(idleOrbPasses.map((pass) => pass.edgeId));
-        const candidates = edges.filter((edge) => {
+        const candidates = runtimeEdges.filter((edge) => {
           if (busy.has(edge.id)) return false;
           const from = agentMap.get(edge.from);
           const to = agentMap.get(edge.to);
@@ -558,19 +588,34 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
     const idleOrbRadius = Math.max(2 * DPR, (params.LINK_ORB_SIZE || 3) * DPR);
     const activeOrbSizePx = params.ACTIVE_LINK_ORB_SIZE ?? params.LINK_ORB_SIZE ?? 3;
     const activeOrbRadius = Math.max(2 * DPR, activeOrbSizePx * DPR);
+    const baseWidth = params.THICK_A * DPR * 0.7;
 
     if (introRunning) {
+      runtimeEdges.forEach((edge) => {
+        const A = agentMap.get(edge.from);
+        const B = agentMap.get(edge.to);
+        if (!A || !B) return;
+        ectx.lineWidth = baseWidth;
+        ectx.strokeStyle = linkStrokeColor;
+        ectx.shadowBlur = 0;
+        ectx.shadowColor = 'transparent';
+        ectx.globalAlpha = 1;
+        ectx.beginPath();
+        ectx.moveTo(A.x, A.y);
+        ectx.lineTo(B.x, B.y);
+        ectx.stroke();
+      });
+
       if (introEdge) {
-        const amap = currentAgentMap();
-        const A = amap.get(introEdge.fromId);
-        const B = amap.get(introEdge.toId);
+        const { edge, start, dur, resolve } = introEdge;
+        const A = agentMap.get(edge.from);
+        const B = agentMap.get(edge.to);
         if (A && B) {
-          const elapsed = now - introEdge.start;
-          const t = Math.max(0, Math.min(1, elapsed / introEdge.dur));
+          const elapsed = now - start;
+          const t = Math.max(0, Math.min(1, elapsed / dur));
           const x = A.x + (B.x - A.x) * t;
           const y = A.y + (B.y - A.y) * t;
           callbacks.onIntroEdgeStep?.(t);
-          const baseWidth = params.THICK_A * DPR * 0.7;
           ectx.lineWidth = baseWidth;
           ectx.strokeStyle = linkStrokeColor;
           ectx.shadowBlur = 0;
@@ -581,20 +626,11 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
           ectx.lineTo(x, y);
           ectx.stroke();
 
-          ectx.save();
-          const baseR = activeOrbRadius;
-          ectx.shadowBlur = 0;
-          ectx.shadowColor = 'transparent';
-          ectx.beginPath();
-          ectx.globalAlpha = 1;
-          ectx.fillStyle = activeOrbColor;
-          ectx.arc(x, y, baseR, 0, Math.PI * 2);
-          ectx.fill();
-          ectx.restore();
-
           if (t >= 1) {
-            const cb = introEdge.resolve;
+            const completedEdge = edge;
+            const cb = resolve;
             introEdge = null;
+            appendRuntimeEdge(completedEdge);
             callbacks.onIntroEdgeStep?.(1);
             try {
               cb();
@@ -610,11 +646,10 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
       return;
     }
 
-    const baseWidth = params.THICK_A * DPR * 0.7;
     const pulse = activeEdgeId ? 0.5 + 0.5 * Math.sin((now - activeEdgeSince) / 260) : 0;
 
     const timeBase = now / IDLE_ORB_DURATION_MS;
-    edges.forEach((edge) => {
+    runtimeEdges.forEach((edge) => {
       const A = agentMap.get(edge.from);
       const B = agentMap.get(edge.to);
       if (!A || !B) return;
@@ -744,6 +779,9 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
   }
 
   function setActiveEdge(id: string | null) {
+    if (id && !runtimeEdges.some((edge) => edge.id === id)) {
+      return;
+    }
     activeEdgeId = id;
     activeEdgeSince = performance.now();
     if (id) {
@@ -755,20 +793,30 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
     nextIdleOrbTime = activeEdgeSince + randRange(IDLE_ORB_INTERVAL_MIN_MS, IDLE_ORB_INTERVAL_MAX_MS);
   }
 
-  function animateIntroEdge(fromId: string, toId: string, dur: number) {
+  function animateIntroEdge(edge: Edge, dur: number) {
     return new Promise<void>((resolve) => {
-      introEdge = { fromId, toId, start: performance.now(), dur, resolve };
+      introEdge = { edge, start: performance.now(), dur, resolve };
     });
   }
 
   async function runIntroEdges() {
     introRunning = true;
+    introEdge = null;
+    idleOrbPasses = [];
+    setActiveEdge(null);
+    if (INTRO_OVERRIDES_GRAPH) {
+      setRuntimeEdges([]);
+    }
+    setIdleOrbVisibilityTarget(0);
     callbacks.onIntroEdgeStep?.(0);
-    const order = S3_AGENTS.map((a) => a.id);
-    for (let i = 0; i < order.length - 1; i++) {
-      await animateIntroEdge(order[i], order[i + 1], 820);
+    const script = INTRO_OVERRIDES_GRAPH ? S3_INTRO_EDGES : S3_EDGES;
+    for (const agentEdge of script) {
+      const edge = toRuntimeEdge(agentEdge);
+      await animateIntroEdge(edge, INTRO_EDGE_DURATION_MS);
     }
     introRunning = false;
+    setIdleOrbVisibilityTarget(1);
+    nextIdleOrbTime = performance.now() + randRange(IDLE_ORB_INTERVAL_MIN_MS, IDLE_ORB_INTERVAL_MAX_MS);
     callbacks.onIntroEdgeStep?.(1);
   }
 
@@ -792,7 +840,7 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
     randomizeNodeSpacings,
     subscribe,
     getSnapshot: () => snapshot,
-    getEdges: () => S3_EDGES,
+    getEdges: () => getRuntimeEdges().map(toAgentEdge),
     getParams: () => params,
   };
 }
