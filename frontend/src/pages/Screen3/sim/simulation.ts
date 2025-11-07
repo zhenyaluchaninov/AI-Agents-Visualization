@@ -100,7 +100,7 @@ export function createSimulation(cfg: SimConfig, callbacks: SimCallbacks = {}) {
   const toAgentEdge = (edge: Edge): AgentEdge => ({ id: edge.id, from: edge.from, to: edge.to });
 
   if (!INTRO_OVERRIDES_GRAPH) {
-    setRuntimeEdges(S3_EDGES);
+    setRuntimeEdges([...S3_EDGES]);
   }
 
   const nodes: PNode[] = [];
